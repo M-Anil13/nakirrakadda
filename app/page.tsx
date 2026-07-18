@@ -576,7 +576,7 @@ export default function Home() {
             <div className="rounded-full border border-orange-500/30 bg-black/40 px-4 py-2 text-sm font-medium text-orange-300">
               {cartItems.length} item{cartItems.length === 1 ? "" : "s"}
             </div>
-          </div>
+        
 
           {cartItems.length === 0 ? (
             <p className="mt-6 text-zinc-300">
