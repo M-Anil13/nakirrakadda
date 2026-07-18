@@ -576,7 +576,7 @@ export default function Home() {
             <div className="rounded-full border border-orange-500/30 bg-black/40 px-4 py-2 text-sm font-medium text-orange-300">
               {cartItems.length} item{cartItems.length === 1 ? "" : "s"}
             </div>
-        
+          </div>
 
           {cartItems.length === 0 ? (
             <p className="mt-6 text-zinc-300">
@@ -930,9 +930,7 @@ export default function Home() {
 
       <section className="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
         <div className="rounded-[2rem] border border-white/10 bg-zinc-900/90 p-6 text-center lg:p-8">
-          <
-            
-            p className="text-sm font-semibold uppercase tracking-[0.35em] text-orange-400">Contact</p>
+          <p className="text-sm font-semibold uppercase tracking-[0.35em] text-orange-400">Contact</p>
           <h2 className="mt-2 text-3xl font-bold text-white">Order now for the ultimate bite</h2>
           <p className="mx-auto mt-3 max-w-2xl text-zinc-300">
             Craving something hot and delicious? Reach out anytime for dine-in, pickup or delivery.
