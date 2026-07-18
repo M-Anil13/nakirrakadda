@@ -971,7 +971,7 @@ export default function Home() {
             </p>
             <p>
               <span className="font-semibold text-white">Instagram:</span>{" "}
-              <a href="https://www.instagram.com/nakirraakadda?igsh=MWNsd3p5bmdjMxZA%3D%3D&utm_" target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:underline">
+              <a href="https://www.instagram.com/nakirraakadda?igsh=MWNsd3p5bmdjMxZA%3D%3D&utm_source=qr" target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:underline">
                 @nakirraakadda
               </a>
             </p>
