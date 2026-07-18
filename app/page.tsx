@@ -489,12 +489,12 @@ export default function Home() {
             backgroundSize: "contain",
             backgroundRepeat: "no-repeat",
             backgroundColor: "#000000",
-            minHeight: "100vh",
+            minHeight: "auto",
           }}
         >
           <div className="absolute inset-0" />
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,_rgba(255,255,255,0.08),_transparent_30%)]" />
-          <div className="relative flex min-h-[80vh] items-center justify-center px-2 pt-8 sm:pt-10 lg:px-0 lg:pt-0">
+          <div className="relative flex min-h-[60vh] sm:min-h-[80vh]items-center justify-center px-2 pt-8 sm:pt-10 lg:px-0 lg:pt-0">
             <div className="w-full max-w-3xl text-center">
               <h1 className="mt-4 text-4xl font-black leading-tight text-white sm:text-5xl lg:text-6xl">
                 NA KIRRAAK ADDA
@@ -832,7 +832,6 @@ export default function Home() {
                 <p className="mt-3 text-sm text-zinc-300">“{review.text}”</p>
                 <p className="mt-4 font-semibold text-white">{review.name}</p>
               </article>
-            
           ))}
           </div>
         </div>
