@@ -396,39 +396,66 @@ export default function Home() {
 
   const handlePlaceOrder = async () => {
     if (!customerName || !phone || !address) {
+      alert("Please fill all customer details.");
       return;
     }
 
+    try{
     const response = await fetch("/api/orders", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ paymentMethod }),
+      headers: { 
+        "Content-Type": "application/json", 
+      },
+      body: JSON.stringify({ 
+        customerName,
+        phone,
+        address,
+        paymentMethod,
+        cartItems,
+        grandTotal,
+      }),
     });
 
-    if (response.ok) {
-      const data = await response.json();
-      setOfflineOrders(data.offlineCount ?? offlineOrders);
-      const nextCount = data.onlineCount ?? onlineOrders + 1;
-      setOnlineOrders(nextCount);
-      if (nextCount === 1) {
-        setCelebration("🎉 Congratulations! You are our First Online Customer. You receive a FREE meal.");
-        setOfferClaimed(true);
-      } else if (nextCount === 100) {
-        setCelebration("🎉 Congratulations! You are our 100th Online Customer. You receive a FREE meal.");
+    if (!response.ok) {
+      alert("Unable to confirm your order. Please try again.");
+      return;
+    }
+    alert("Order Placed Successfully!");
+
+    const data = await response.json();
+
+    setOfflineOrders(data.offlineCount ?? offlineOrders);
+    const nextCount = data.onlineCount ?? onlineOrders + 1;
+    setOnlineOrders(nextCount);
+
+    if (nextCount === 1)  {
+      setCelebration(
+        "🎉 Congratulations! You are our First Online Customer. You receive a FREE meal."
+      );
+      setOfferClaimed(true);
+  }   else if (nextCount === 100) {
+        setCelebration(
+          "🎉 Congratulations! You are our 100th Online Customer. You receive a FREE meal."
+        );
         setOfferClaimed(true);
       } else {
         setCelebration("");
         setOfferClaimed(false);
       }
+
       setCartItems([]);
       setCheckoutOpen(false);
       setCustomerName("");
       setPhone("");
       setAddress("");
       setPaymentMethod("UPI");
+
+    } catch (error) {
+      console.error(error);
+      alert("Serve error. Please try again.");
     }
   };
-
+    
   const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
