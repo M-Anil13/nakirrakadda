@@ -529,7 +529,7 @@ export default function Home() {
                     <a
                       href="https://wa.me/919966533466?text=Hello%20NA%20KIRRAAK%20ADDA"
                       target="_blank"
-                      rel="noreferrer"
+                      rel="noopener noreferrer"
                       className="blink-btn rounded-full border border-white/20 bg-white/10 px-5 py-3 font-semibold text-white transition hover:bg-white/20"
                     >
                       Order Now
