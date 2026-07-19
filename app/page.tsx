@@ -26,47 +26,47 @@ type CustomerReview = {
 
 const vegPizzas: MenuItem[] = [
   {
-    name: "Veg Cheese Pizza",
+    name: "Veg Cheese Pizza (8 Inches)",
     description: "Fresh vegetables with cheese",
     price: "₹139",
   },
   {
-    name: "Onion Capsicum Pizza",
+    name: "Onion Capsicum Pizza (8 Inches)",
     description: "Onion, capsicum & mozzarella",
     price: "₹139",
   },
   {
-    name: "Tomato Cheese Pizza",
+    name: "Tomato Cheese Pizza (8 Inches)",
     description: "Fresh tomato & cheese",
     price: "₹139",
   },
   {
-    name: "Veg Cheese Spicy Pizza",
+    name: "Veg Cheese Spicy Pizza (8 Inches)",
     description: "Spicy veg cheese pizza",
     price: "₹149",
   },
   {
-    name: "Mixed Veg Cheese Pizza",
+    name: "Mixed Veg Cheese Pizza (8 Inches)",
     description: "Loaded mixed vegetables",
     price: "₹159",
   },
   {
-    name: "Paneer Tikka Pizza",
+    name: "Paneer Tikka Pizza (8 Inches)",
     description: "Paneer tikka with cheese",
     price: "₹169",
   },
   {
-    name: "Sweet Corn Pizza",
+    name: "Sweet Corn Pizza (8 Inches)",
     description: "Sweet corn & mozzarella",
     price: "₹169",
   },
   {
-    name: "Special Double Crust Pizza",
+    name: "Special Double Crust Pizza (8 Inches)",
     description: "Double crust special",
     price: "₹169",
   },
   {
-    name: "Paneer Tikka Special Double Crust Pizza",
+    name: "Paneer Tikka Special Double Crust Pizza (8 Inches)",
     description: "Paneer tikka with double crust",
     price: "₹189",
   },
@@ -74,32 +74,32 @@ const vegPizzas: MenuItem[] = [
 
 const nonVegPizzas: MenuItem[] = [
   {
-    name: "Chicken Cheese Pizza",
+    name: "Chicken Cheese Pizza (8 Inches)",
     description: "Chicken with rich cheesy flavor",
     price: "₹179",
   },
   {
-    name: "Chicken Cheese Spicy Pizza",
+    name: "Chicken Cheese Spicy Pizza (8 Inches)",
     description: "Spicy chicken pizza with cheese",
     price: "₹189",
   },
   {
-    name: "Chicken Tikka Cheese Pizza",
+    name: "Chicken Tikka Cheese Pizza (8 Inches)",
     description: "Chicken tikka with cheese",
     price: "₹199",
   },
   {
-    name: "Chicken Paneer Tikka Pizza",
+    name: "Chicken Paneer Tikka Pizza (8 Inches)",
     description: "Chicken and paneer tikka combo",
     price: "₹209",
   },
   {
-    name: "Chicken Special Double Crust Pizza",
+    name: "Chicken Special Double Crust Pizza (8 Inches)",
     description: "Double crust chicken special",
     price: "₹219",
   },
   {
-    name: "Chicken Tikka Special Double Crust Pizza",
+    name: "Chicken Tikka Special Double Crust Pizza (8 Inches)",
     description: "Chicken tikka with double crust",
     price: "₹229",
   },
