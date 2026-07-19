@@ -551,7 +551,7 @@ export default function Home() {
                     <div className="mt-6 grid gap-3 sm:grid-cols-2">
                       <div className="rounded-2xl border border-white/10 bg-white/10 p-4">
                         <p className="text-sm text-zinc-400">Open</p>
-                        <p className="mt-1 text-lg font-semibold text-white">3:00 PM - 11:00 PM</p>
+                        <p className="mt-1 text-lg font-semibold text-white">3:00 PM - 12:00 PM</p>
                       </div>
                       <div className="rounded-2xl border border-white/10 bg-white/10 p-4">
                         <p className="text-sm text-zinc-400">Order</p>
