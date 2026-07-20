@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { collection, addDoc } from "firebase/firestore";
 import { db } from "../../../lib/firebase";
+import { sendOrderEmail } from "@/lib/email";
 
 export async function GET() {
   return NextResponse.json({
@@ -22,6 +23,8 @@ export async function POST(request: Request) {
       grandTotal: body.grandTotal,
       createdAt: new Date(),
     });
+    
+    await sendOrderEmail(body);
 
     return NextResponse.json({
       success: true,
