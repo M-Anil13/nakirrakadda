@@ -15,20 +15,28 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const body = await request.json();
+  try {
+    const body = await request.json();
 
-  await addDoc(collection(db, "orders"), {
-    customerName: body.customerName,
-    phone: body.phone,
-    address: body.address,
-    paymentMethod: body.paymentMethod,
-    cartItems: body.cartItems,
-    grandTotal: body.grandTotal,
-    createdAt: new Date(),
-  });
+    await addDoc(collection(db, "orders"), {
+      customerName: body.customerName,
+      phone: body.phone,
+      address: body.address,
+      paymentMethod: body.paymentMethod,
+      cartItems: body.cartItems,
+      grandTotal: body.grandTotal,
+      createdAt: new Date(),
+    });
 
-  return NextResponse.json({
-    offlineCount: getOrdersServed(),
-    onlineCount: incrementOnlineOrders(),
-  });
+    return NextResponse.json({
+      offlineCount: getOrdersServed(),
+      onlineCount: incrementOnlineOrders(),
+    });
+  } catch (error) {
+    console.error("Order API Error:", error);
+    return NextResponse.json(
+      { error: String(error) },
+      { status: 500 }
+    );
+  }
 }
