@@ -1,16 +1,11 @@
 import { NextResponse } from "next/server";
 import { collection, addDoc } from "firebase/firestore";
 import { db } from "../../../lib/firebase";
-import {
-  incrementOnlineOrders,
-  getOnlineOrders,
-  getOrdersServed,
-} from "../../../lib/orders-db";
 
 export async function GET() {
   return NextResponse.json({
-    offlineCount: getOrdersServed(),
-    onlineCount: getOnlineOrders(),
+    offlineCount: 200,
+    onlineCount: 0,
   });
 }
 
@@ -29,8 +24,7 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({
-      offlineCount: getOrdersServed(),
-      onlineCount: incrementOnlineOrders(),
+      success: true,
     });
   } catch (error) {
     console.error("Order API Error:", error);
