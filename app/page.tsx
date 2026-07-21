@@ -414,9 +414,7 @@ export default function Home() {
       paymentMethod,
       cartItems,
       grandTotal,
-
-      userId: user.uid,
-      customerPhone: user.phoneNumber,
+    
       status: "Received",
       createdAt: Date.now(),
     }),
