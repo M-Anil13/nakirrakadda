@@ -401,13 +401,6 @@ export default function Home() {
     return;
   }
 
-  const user = auth.currentUser;
-
-  if (!user) {
-    alert("Please login first.");
-    return;
-  }
-
     try{
     const response = await fetch("/api/orders", {
     method: "POST",
