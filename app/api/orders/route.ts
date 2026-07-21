@@ -27,8 +27,6 @@ export async function POST(request: Request) {
       // Customer Details
       customerName: body.customerName,
       phone: body.phone,
-      customerPhone: body.customerPhone,
-      userId: body.userId,
 
       // Address & Payment
       address: body.address,
@@ -39,17 +37,15 @@ export async function POST(request: Request) {
       grandTotal: body.grandTotal,
 
       // Status
-      status: body.status || "Received",
-      createdAt: body.createdAt || new Date(),
+      status: "Received",
+      createdAt: new Date(),
     });
 
     const order = {
       ...body,
       id: orderId,
       orderId,
-      userId: body.userId,
-      customerPhone: body.customerPhone,
-      status: body.status || "Received",
+      status: "Received",
     };
 
     // Send Email

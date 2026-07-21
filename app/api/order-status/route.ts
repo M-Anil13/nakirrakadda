@@ -1,21 +1,49 @@
 import { NextResponse } from "next/server";
-import { doc, getDoc } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const id = searchParams.get("id");
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
 
-  if (!id) {
-    return NextResponse.json({ error: "Order ID required" }, { status: 400 });
+    const phone = body.phone?.trim();
+    const orderId = body.orderId?.trim();
+
+    const q = query(
+      collection(db, "orders"),
+      where("phone", "==", phone),
+      where("orderId", "==", orderId)
+    );
+
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+      return NextResponse.json({
+        success: false,
+        message: "Order not found",
+      });
+    }
+
+    const order = snapshot.docs[0].data();
+
+    return NextResponse.json({
+      success: true,
+      order,
+    });
+  } catch (error) {
+    console.error(error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Server Error",
+      },
+      { status: 500 }
+    );
   }
-
-  const orderRef = doc(db, "orders", id);
-  const orderSnap = await getDoc(orderRef);
-
-  if (!orderSnap.exists()) {
-    return NextResponse.json({ error: "Order not found" }, { status: 404 });
-  }
-
-  return NextResponse.json(orderSnap.data());
 }
