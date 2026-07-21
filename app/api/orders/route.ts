@@ -20,23 +20,36 @@ export async function POST(request: Request) {
     // Create unique Order ID
     const orderId = Date.now().toString();
 
+    // Save Order to Firestore
     await addDoc(collection(db, "orders"), {
       orderId,
+
+      // Customer Details
       customerName: body.customerName,
       phone: body.phone,
+      customerPhone: body.customerPhone,
+      userId: body.userId,
+
+      // Address & Payment
       address: body.address,
       paymentMethod: body.paymentMethod,
+
+      // Order Details
       cartItems: body.cartItems,
       grandTotal: body.grandTotal,
-      status: "Received",
-      createdAt: new Date(),
+
+      // Status
+      status: body.status || "Received",
+      createdAt: body.createdAt || new Date(),
     });
 
     const order = {
       ...body,
       id: orderId,
       orderId,
-      status: "Received",
+      userId: body.userId,
+      customerPhone: body.customerPhone,
+      status: body.status || "Received",
     };
 
     // Send Email

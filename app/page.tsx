@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { auth } from "@/lib/firebase";
 
 type MenuItem = {
   name: string;
@@ -394,27 +395,40 @@ export default function Home() {
     }
   }, []);
 
-  const handlePlaceOrder = async () => {
-    if (!customerName || !phone || !address) {
-      alert("Please fill all customer details.");
-      return;
-    }
+  const placeOrder = async () => {
+  if (!customerName || !phone || !address) {
+    alert("Please fill all customer details.");
+    return;
+  }
+
+  const user = auth.currentUser;
+
+  if (!user) {
+    alert("Please login first.");
+    return;
+  }
 
     try{
     const response = await fetch("/api/orders", {
-      method: "POST",
-      headers: { 
-        "Content-Type": "application/json", 
-      },
-      body: JSON.stringify({ 
-        customerName,
-        phone,
-        address,
-        paymentMethod,
-        cartItems,
-        grandTotal,
-      }),
-    });
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      customerName,
+      phone,
+      address,
+      paymentMethod,
+      cartItems,
+      grandTotal,
+
+      userId: user.uid,
+      customerPhone: user.phoneNumber,
+      status: "Received",
+      createdAt: Date.now(),
+    }),
+  });
+    
 
     if (!response.ok) {
       alert("Unable to confirm your order. Please try again.");
@@ -554,9 +568,7 @@ export default function Home() {
                 <div className="mb-5 flex flex-col items-center gap-3 text-center">
                   <div className="flex justify-center">
                     <a
-                      href="https://wa.me/919966533466?text=Hello%20NA%20KIRRAAK%20ADDA"
-                      target="_blank"
-                      rel="noopener noreferrer"
+                      href="/orders"
                       className="blink-btn rounded-full border border-white/20 bg-white/10 px-5 py-3 font-semibold text-white transition hover:bg-white/20"
                     >
                       Order Now
