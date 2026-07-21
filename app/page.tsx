@@ -783,7 +783,7 @@ export default function Home() {
                   </div>
                 </div>
                 <button
-                  onClick={handlePlaceOrder}
+                  onClick={placeOrder}
                   className="mt-6 w-full rounded-full bg-orange-500 px-5 py-3 font-semibold text-black transition hover:bg-orange-400"
                 >
                   Place Order
