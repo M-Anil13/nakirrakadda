@@ -32,9 +32,12 @@ export function setupRecaptcha(containerId: string) {
 export async function sendOTP(phone: string) {
   const appVerifier = window.recaptchaVerifier;
 
+  const formattedPhone =
+    phone.startsWith("+") ? phone : "+91" + phone;
+
   const confirmationResult = await signInWithPhoneNumber(
     auth,
-    phone,
+    formattedPhone,
     appVerifier
   );
 
