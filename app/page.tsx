@@ -397,12 +397,23 @@ export default function Home() {
   }, []);
 
   const placeOrder = async () => {
+
   if (!customerName || !phone || !address) {
     alert("Please fill all customer details.");
     return;
   }
 
-    try{
+  if (!deliveryArea) {
+    alert("Please select your delivery area.");
+    return;
+  }
+
+  if (deliveryArea === "Other") {
+    alert("Sorry! We currently deliver only within 3 km of NA Kirraak Adda.");
+    return;
+  }
+
+  try {
     const response = await fetch("/api/orders", {
     method: "POST",
     headers: {
@@ -702,14 +713,53 @@ export default function Home() {
                   />
                 </div>
                 <div>
-                  <label className="mb-2 block text-sm font-semibold text-zinc-300">Address</label>
-                  <textarea
-                    value={address}
-                    onChange={(event) => setAddress(event.target.value)}
-                    className="min-h-28 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-white outline-none"
-                    placeholder="Enter your delivery address"
-                  />
-                </div>
+                  <input
+  value={phone}
+  onChange={(event) => setPhone(event.target.value)}
+  ...
+/>
+
+<div>
+  <label className="mb-2 block text-sm font-semibold text-zinc-300">
+    Delivery Area
+  </label>
+
+  <select
+    value={deliveryArea}
+    onChange={(e) => setDeliveryArea(e.target.value)}
+    className="mb-4 min-h-12 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-white outline-none"
+  >
+    <option value="">Select Delivery Area</option>
+    <option>Uppal</option>
+    <option>Ramanthapur</option>
+    <option>Nagole</option>
+    <option>Habsiguda</option>
+    <option>Boduppal</option>
+    <option>Nacharam</option>
+    <option>Tarnaka</option>
+    <option>Alkapuri X Roads</option>
+    <option>Sai Nagar</option>
+    <option>Bandlaguda</option>
+    <option>Saraswathi Colony</option>
+    <option>Venkateshwara Colony</option>
+    <option>Raghavendra Nagar Colony</option>
+    <option>Shanti Nagar</option>
+    <option>Kalyanpuri</option>
+    <option>Chiluka Nagar</option>
+    <option>Other</option>
+  </select>
+
+  <label className="mb-2 block text-sm font-semibold text-zinc-300">
+    Address
+  </label>
+
+  <textarea
+    value={address}
+    onChange={(event) => setAddress(event.target.value)}
+    className="min-h-28 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-white outline-none"
+    placeholder="Enter your delivery address"
+  />
+</div>
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-zinc-300">Payment Method</label>
                   <div className="grid gap-3 sm:grid-cols-2">
