@@ -557,14 +557,7 @@ export default function Home() {
             <div className="mt-8 flex justify-center">
               <div className="w-full max-w-xl">
                 <div className="mb-5 flex flex-col items-center gap-3 text-center">
-                  <div className="flex justify-center">
-                    <a
-                      href="/orders"
-                      className="blink-btn rounded-full border border-white/20 bg-white/10 px-5 py-3 font-semibold text-white transition hover:bg-white/20"
-                    >
-                      Order Now
-                    </a>
-                  </div>
+                 
                   <div className="mt-2 w-full max-w-[17rem] rounded-[1.15rem] border border-orange-500/30 bg-black/70 p-3 shadow-[0_0_20px_rgba(249,115,22,0.14)] backdrop-blur">
                     <div className="text-left">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-orange-400">🎁 LAUNCH OFFER</p>
