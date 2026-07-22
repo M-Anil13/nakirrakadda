@@ -503,7 +503,7 @@ export default function Home() {
         onClick={() => {
           document.getElementById("cart-section")?.scrollIntoView({ behavior: "smooth" });
         }}
-        className="fixed right-4 top-4 z-50 rounded-full border border-orange-500/40 bg-black/80 p-3 text-xl shadow-lg shadow-orange-500/20"
+        className="fixed right-4 top-4 z-[9999] cursor-pointer rounded-full border border-orange-500/40 bg-black/80 p-3 shadow-lg"
       >
         🛒
         {cartItems.length > 0 ? (
