@@ -704,21 +704,19 @@ export default function Home() {
                   />
                 </div>
                 <div>
-                  <label className="mb-2 block text-sm font-semibold text-zinc-300">Phone Number</label>
-                  <input
-                    value={phone}
-                    onChange={(event) => setPhone(event.target.value)}
-                    className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-white outline-none"
-                    placeholder="Enter your phone number"
-                  />
-                </div>
-                <div>
-                  <input
+                  <label className="mb-2 block text-sm font-semibold text-zinc-300">
+  Phone Number
+</label>
+
+<input
+  type="tel"
   value={phone}
   onChange={(event) => setPhone(event.target.value)}
-  ...
+  className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-white outline-none"
+  placeholder="Enter your phone number"
 />
-
+                </div>
+                  
 <div>
   <label className="mb-2 block text-sm font-semibold text-zinc-300">
     Delivery Area
