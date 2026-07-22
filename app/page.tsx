@@ -310,6 +310,7 @@ export default function Home() {
   const [customerName, setCustomerName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
+  const [deliveryArea, setDeliveryArea] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("UPI");
   const [offlineOrders, setOfflineOrders] = useState(200);
   const [onlineOrders, setOnlineOrders] = useState(0);
