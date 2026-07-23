@@ -538,9 +538,9 @@ export default function Home() {
         >
           <div className="absolute inset-0" />
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,_rgba(255,255,255,0.08),_transparent_30%)]" />
-          <div className="relative flex min-h-[60vh] sm:min-h-[80vh]items-center justify-center px-2 pt-8 sm:pt-10 lg:px-0 lg:pt-0">
-            <div className="w-full max-w-3xl text-center flex flex-col items-center justify-center gap-4">
-              <h1 className="text-4xl font-black leading-tight text-white sm:text-5xl lg:text-6xl">
+          <div className="relative flex min-h-[60vh] sm:min-h-[80vh] items-center justify-center px-2 pt-8 sm:pt-10 lg:px-0 lg:pt-0">
+            <div className="w-full max-w-md sm:max-w-2xl lg:max-w-3xl text-center flex flex-col items-center justify-center gap-4 px-2">
+              <h1 className="text-3xl sm:text-4xl lg:text-6xl font-black leading-tight text-white">
                 NA KIRRAAK ADDA
               </h1>
               <p className="mt-4 text-sm font-bold uppercase tracking-[0.4em] text-[#ff9f1c] md:text-base">
@@ -570,7 +570,7 @@ export default function Home() {
               <div className="w-full max-w-xl">
                 <div className="mb-5 flex flex-col items-center gap-3 text-center">
                  
-                  <div className="mt-2 w-full max-w-[17rem] rounded-[1.15rem] border border-orange-500/30 bg-black/70 p-3 shadow-[0_0_20px_rgba(249,115,22,0.14)] backdrop-blur">
+                  <div className="mt-2 w-full sm:max-w-[17rem] rounded-[1.15rem] border border-orange-500/30 bg-black/70 p-3 shadow-[0_0_20px_rgba(249,115,22,0.14)] backdrop-blur">
                     <div className="text-left">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-orange-400">🎁 LAUNCH OFFER</p>
                       <p className="mt-2 text-[13px] font-semibold text-white">🥇 1st Online Order FREE</p>
@@ -583,7 +583,7 @@ export default function Home() {
                     <p className="text-sm font-semibold uppercase tracking-[0.3em] text-orange-400">
                       Pizza & Burger House
                     </p>
-                    <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                    <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="rounded-2xl border border-white/10 bg-white/10 p-4">
                         <p className="text-sm text-zinc-400">Open</p>
                         <p className="mt-1 text-lg font-semibold text-white">3:00 PM - 12:00 AM</p>
