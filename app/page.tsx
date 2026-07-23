@@ -583,14 +583,14 @@ export default function Home() {
                     <p className="text-sm font-semibold uppercase tracking-[0.3em] text-orange-400">
                       Pizza & Burger House
                     </p>
-                    <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className="mt-4 grid grid-cols-2 gap-2">
                       <div className="rounded-2xl border border-white/10 bg-white/10 p-2 sm:p-4">
-                        <p className="text-sm text-zinc-400">Open</p>
-                        <p className="mt-1 text-base sm:text-lg font-semibold text-white">3:00 PM - 12:00 AM</p>
+                        <p className="text-xs text-zinc-400">Open</p>
+                        <p className="mt-1 text-sm font-semibold text-white">3:00 PM - 12:00 AM</p>
                       </div>
-                      <div className="rounded-2xl border border-white/10 bg-white/10 p-4">
-                        <p className="text-sm text-zinc-400">Order</p>
-                        <p className="mt-1 text-base sm:text-lg font-semibold text-white">Fast delivery & dine-in</p>
+                      <div className="rounded-2xl border border-white/10 bg-white/10 p-2">
+                        <p className="text-xs sm:text-sm text-zinc-400">Order</p>
+                        <p className="mt-1 text-sm font-semibold text-white">Fast delivery & dine-in</p>
                       </div>
                     </div>
                   </div>
