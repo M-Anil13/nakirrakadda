@@ -544,14 +544,12 @@ export default function Home() {
               </div>
             
 
-            <div className="mt-8 flex justify-center">
-              <div className="w-full max-w-xl">
+            <div className="mt-8 flex flex-col items-center lg:flex-row lg:justify-between lg:items-start">
+              <div className="w-full max-w-xl order-2 lg:order-1">
                 <div className="mb-5 flex flex-col items-center gap-3 text-center">
-                 
                   <div className="w-full space-y-4">
-
-  {/* Timings */}
-<div className="rounded-2xl border border-white/10 bg-zinc-900 p-5">
+                  {/* Timings */}
+<div className="w-full mt-4 lg:mt-0 rounded-2xl border border-white/10 bg-zinc-900 p-5">
   <p className="text-sm font-bold text-green-400">
     ● OPEN NOW
   </p>
@@ -564,6 +562,9 @@ export default function Home() {
     Everyday
   </p>
 </div>
+                  
+
+ 
 
   
 </div>
