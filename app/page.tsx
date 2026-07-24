@@ -548,7 +548,11 @@ export default function Home() {
               <div className="w-full max-w-xl order-2 lg:order-1">
                 <div className="mb-5 flex flex-col items-center gap-3 text-center">
                   <div className="w-full space-y-4">
-                  {/* Timings */}
+                 
+  
+</div>
+</div>
+           {/* Timings */}
 <div className="w-full mt-4 lg:mt-0 rounded-2xl border border-white/10 bg-zinc-900 p-5">
   <p className="text-sm font-bold text-green-400">
     ● OPEN NOW
@@ -561,15 +565,7 @@ export default function Home() {
   <p className="mt-1 text-zinc-400">
     Everyday
   </p>
-</div>
-                  
-
- 
-
-  
-</div>
-</div>
-                
+</div>      
                 </div>
                 </div>
               </div>
