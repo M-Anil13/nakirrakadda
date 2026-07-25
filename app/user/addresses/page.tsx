@@ -24,20 +24,21 @@ export default function AddressesPage() {
     lng: 0,
   });
 
-  const token = localStorage.getItem("token");
-
   useEffect(() => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
     if (!token) {
       router.push("/auth/login");
       return;
     }
     fetchAddresses();
-  }, [token, router]);
+  }, [router]);
+
+  const getToken = () => (typeof window !== "undefined" ? localStorage.getItem("token") || "" : "");
 
   const fetchAddresses = async () => {
     try {
       const response = await fetch("/api/addresses", {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${getToken()}` },
       });
       const data = await response.json();
       setAddresses(data);
@@ -56,7 +57,7 @@ export default function AddressesPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${getToken()}`,
         },
         body: JSON.stringify(formData),
       });
@@ -77,7 +78,7 @@ export default function AddressesPage() {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${getToken()}`,
         },
         body: JSON.stringify({ id, setAsDefault: true }),
       });

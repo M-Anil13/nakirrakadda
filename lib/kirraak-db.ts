@@ -229,6 +229,14 @@ db.exec(`
     updated_at INTEGER NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS reset_otps (
+    id TEXT PRIMARY KEY,
+    identifier TEXT NOT NULL,
+    otp_code TEXT NOT NULL,
+    expires_at INTEGER NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS sessions (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
@@ -300,6 +308,84 @@ export function createUser(username: string, password: string, email: string, ph
 
 export function verifyPassword(password: string, hash: string): boolean {
   return bcrypt.compareSync(password, hash);
+}
+
+export function updateUserPassword(userId: string, currentPass: string, newPass: string): { success: boolean; error?: string } {
+  const user = getUserById(userId);
+  if (!user) {
+    return { success: false, error: "User account not found." };
+  }
+
+  const isCurrentValid = verifyPassword(currentPass, user.password_hash);
+  if (!isCurrentValid) {
+    return { success: false, error: "Incorrect current password." };
+  }
+
+  if (newPass.length < 6) {
+    return { success: false, error: "New password must be at least 6 characters long." };
+  }
+
+  const newHash = bcrypt.hashSync(newPass, 10);
+  db.prepare(`UPDATE users SET password_hash = ? WHERE id = ?`).run(newHash, userId);
+  return { success: true };
+}
+
+export function createResetOtp(email: string): { success: boolean; user?: User; otpCode?: string; error?: string } {
+  const cleanEmail = email.trim().toLowerCase();
+  const user = db.prepare(`
+    SELECT * FROM users
+    WHERE LOWER(email) = ?
+  `).get(cleanEmail) as User | null;
+
+  if (!user || !user.email) {
+    return { success: false, error: "No registered user account found with that email address." };
+  }
+
+  const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+  const id = `otp_${Date.now()}`;
+  const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes expiry
+
+  db.prepare(`
+    INSERT INTO reset_otps (id, identifier, otp_code, expires_at, created_at)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(id, user.email.toLowerCase(), otpCode, expiresAt, Date.now());
+
+  return { success: true, user, otpCode };
+}
+
+export function verifyResetOtpAndChangePassword(email: string, otpCode: string, newPass: string): { success: boolean; error?: string } {
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanOtp = otpCode.trim();
+
+  const user = db.prepare(`
+    SELECT * FROM users
+    WHERE LOWER(email) = ?
+  `).get(cleanEmail) as User | null;
+
+  if (!user) {
+    return { success: false, error: "No registered user account found with that email address." };
+  }
+
+  const otpRow = db.prepare(`
+    SELECT * FROM reset_otps
+    WHERE LOWER(identifier) = ?
+    AND otp_code = ? AND expires_at > ?
+    ORDER BY created_at DESC LIMIT 1
+  `).get(cleanEmail, cleanOtp, Date.now()) as any;
+
+  if (!otpRow) {
+    return { success: false, error: "Invalid or expired 6-digit OTP code." };
+  }
+
+  if (newPass.length < 6) {
+    return { success: false, error: "New password must be at least 6 characters long." };
+  }
+
+  const newHash = bcrypt.hashSync(newPass, 10);
+  db.prepare(`UPDATE users SET password_hash = ? WHERE id = ?`).run(newHash, user.id);
+  db.prepare(`DELETE FROM reset_otps WHERE id = ?`).run(otpRow.id);
+
+  return { success: true };
 }
 
 // Address functions

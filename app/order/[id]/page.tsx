@@ -31,20 +31,20 @@ export default function OrderTrackPage() {
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const token = localStorage.getItem("token");
-
   useEffect(() => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
     if (!token) {
       router.push("/auth/login");
       return;
     }
     fetchOrder();
-  }, [token, orderId, router]);
+  }, [orderId, router]);
 
   const fetchOrder = async () => {
     try {
+      const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
       const response = await fetch(`/api/user/orders?id=${orderId}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${token || ""}` },
       });
       if (response.ok) {
         const data = await response.json();

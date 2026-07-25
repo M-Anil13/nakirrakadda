@@ -99,18 +99,20 @@ export default function RegisterPage() {
             <input
               type="email"
               name="email"
-              placeholder="Email"
+              placeholder="Email Address (required for password reset)"
               value={formData.email}
               onChange={handleChange}
               className="w-full px-4 py-2 bg-[#050505] text-white border border-[#FF6B00] rounded focus:outline-none focus:border-[#FFC145]"
+              required
             />
             <input
               type="tel"
               name="phone"
-              placeholder="Phone"
+              placeholder="Phone Number"
               value={formData.phone}
               onChange={handleChange}
               className="w-full px-4 py-2 bg-[#050505] text-white border border-[#FF6B00] rounded focus:outline-none focus:border-[#FFC145]"
+              required
             />
             <input
               type="password"

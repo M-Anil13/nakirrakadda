@@ -1,25 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
-import { getUserByUsername, createUser, verifyPassword, getUserById } from "@/lib/kirraak-db";
+import {
+  getUserByUsername,
+  createUser,
+  verifyPassword,
+  getUserById,
+  updateUserPassword,
+  createResetOtp,
+  verifyResetOtpAndChangePassword,
+} from "@/lib/kirraak-db";
+import { sendPasswordResetOtpEmail } from "@/lib/email-service";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production";
 
 export async function POST(request: NextRequest) {
   try {
-    const { action, username, password, email, phone, name } = await request.json();
+    const body = await request.json();
+    const { action, username, password, email, phone, name, userId, currentPassword, newPassword, identifier, otpCode } = body;
 
     if (action === "register") {
+      if (!username || !password || !name || !email) {
+        return NextResponse.json({ error: "Missing required fields (Username, Password, Name, Email)" }, { status: 400 });
+      }
+
       // Check if username already exists
       const existingUser = getUserByUsername(username);
       if (existingUser) {
         return NextResponse.json({ error: "Username already taken" }, { status: 400 });
       }
 
-      if (!username || !password || !name) {
-        return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
-      }
-
-      const user = createUser(username, password, email || "", phone || "", name);
+      const user = createUser(username, password, email, phone || "", name);
 
       const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, JWT_SECRET, {
         expiresIn: "7d",
@@ -68,6 +78,58 @@ export async function POST(request: NextRequest) {
           role: user.role,
         },
       });
+    }
+
+    if (action === "changePassword") {
+      if (!userId || !currentPassword || !newPassword) {
+        return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+      }
+
+      const result = updateUserPassword(userId, currentPassword, newPassword);
+      if (!result.success) {
+        return NextResponse.json({ error: result.error }, { status: 400 });
+      }
+
+      return NextResponse.json({ success: true, message: "Password updated successfully!" });
+    }
+
+    if (action === "requestResetOtp") {
+      const resetEmail = email || identifier || "";
+      if (!resetEmail) {
+        return NextResponse.json({ error: "Please enter your registered Email Address." }, { status: 400 });
+      }
+
+      const result = createResetOtp(resetEmail);
+      if (!result.success) {
+        return NextResponse.json({ error: result.error }, { status: 400 });
+      }
+
+      if (result.user?.email && result.otpCode) {
+        sendPasswordResetOtpEmail({
+          email: result.user.email,
+          otpCode: result.otpCode,
+        }).catch(() => {});
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `✓ 6-Digit OTP verification code sent to ${result.user?.email}!`,
+        otpCode: result.otpCode,
+      });
+    }
+
+    if (action === "resetPasswordWithOtp") {
+      const resetEmail = email || identifier || "";
+      if (!resetEmail || !otpCode || !newPassword) {
+        return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+      }
+
+      const result = verifyResetOtpAndChangePassword(resetEmail, otpCode, newPassword);
+      if (!result.success) {
+        return NextResponse.json({ error: result.error }, { status: 400 });
+      }
+
+      return NextResponse.json({ success: true, message: "Password reset successfully! You can now log in." });
     }
 
     if (action === "verify") {

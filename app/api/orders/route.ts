@@ -1,82 +1,67 @@
 import { NextResponse } from "next/server";
-import { collection, addDoc, getDocs } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { sendOrderEmail } from "@/lib/email";
-import { sendOrderSMS } from "@/lib/sms";
-import { createOrder } from "@/lib/admin-db";
+import { createOrder, getAllOrders } from "@/lib/admin-db";
+import { sendAdminOrderNotificationEmail } from "@/lib/email-service";
 
 export async function GET() {
-  const snapshot = await getDocs(collection(db, "orders"));
-
-  return NextResponse.json({
-    offlineCount: 200,
-    onlineCount: snapshot.size,
-  });
+  try {
+    const orders = getAllOrders();
+    return NextResponse.json(orders);
+  } catch (error) {
+    return NextResponse.json([], { status: 200 });
+  }
 }
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    // Create unique Order ID
-    const orderId = Date.now().toString();
+    if (!body.customerName || !body.phone || !body.address) {
+      return NextResponse.json(
+        { success: false, error: "Missing required order fields" },
+        { status: 400 }
+      );
+    }
 
-    // Save Order to Firestore
-    await addDoc(collection(db, "orders"), {
-      orderId,
-
-      // Customer Details
-      customerName: body.customerName,
-      phone: body.phone,
-
-      // Address & Payment
-      address: body.address,
-      paymentMethod: body.paymentMethod,
-
-      // Order Details
-      cartItems: body.cartItems,
-      grandTotal: body.grandTotal,
-
-      // Status
-      status: "Received",
-      createdAt: new Date(),
-    });
-
-    // Save Order to local database
-    createOrder({
+    // Save order into SQLite database
+    const newOrder = createOrder({
       customerName: body.customerName,
       phone: body.phone,
       address: body.address,
-      paymentMethod: body.paymentMethod,
-      items: body.cartItems,
-      total: body.grandTotal,
+      paymentMethod: body.paymentMethod || "UPI",
+      items: body.items || body.cartItems || [],
+      total: body.grandTotal || body.subtotal || 0,
       status: "Received",
+      couponCode: body.couponCode || "",
+      deviceId: body.deviceId || "",
     });
 
-    const order = {
-      ...body,
-      id: orderId,
-      orderId,
-      status: "Received",
-    };
-
-    // Send Email
-    await sendOrderEmail(order);
-
-    // Send SMS
-    await sendOrderSMS(order);
+    // Send instant Email alert to Admin
+    sendAdminOrderNotificationEmail({
+      order: {
+        id: newOrder.id,
+        customerName: body.customerName,
+        phone: body.phone,
+        address: body.address,
+        items: body.items || body.cartItems || [],
+        subtotal: body.subtotal || 0,
+        gst: body.gst || 0,
+        deliveryCharge: body.deliveryCharge || 0,
+        grandTotal: body.grandTotal || body.total || 0,
+        paymentMethod: body.paymentMethod || "UPI",
+      },
+    }).catch(() => {});
 
     return NextResponse.json({
       success: true,
-      orderId,
+      orderId: newOrder.id,
+      order: newOrder,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Order API Error:", error);
-
     return NextResponse.json(
       {
         success: false,
-        error: String(error),
+        error: error.message || "Failed to create order",
       },
       {
         status: 500,

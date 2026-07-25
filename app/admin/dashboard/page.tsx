@@ -10,6 +10,9 @@ interface Product {
   price: number;
   category: string;
   image: string | null;
+  isVeg?: boolean;
+  isBestseller?: boolean;
+  isActive?: boolean;
 }
 
 interface Order {
@@ -26,31 +29,676 @@ interface Order {
 export default function AdminDashboard() {
   const router = useRouter();
   const [token, setToken] = useState("");
-  const [activeTab, setActiveTab] = useState<"products" | "orders">("products");
+  const [adminName, setAdminName] = useState("Admin");
+  const [adminRole, setAdminRole] = useState("Super Admin");
+  const [isSuperAdmin, setIsSuperAdmin] = useState(true);
+  const [permissions, setPermissions] = useState({
+    canEditMenu: true,
+    canManageOrders: true,
+    canManageRoles: true,
+    canViewAnalytics: true,
+  });
+
+  const [activeTab, setActiveTab] = useState<"products" | "orders" | "settings">("products");
+  const [settingsSubTab, setSettingsSubTab] = useState<"categories" | "sound" | "paytm" | "employees" | "delivery" | "offers" | "email">("categories");
+
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Form states
+  // Offers & Coupon Banner state
+  const [offers, setOffers] = useState<any[]>([]);
+  const [editingOfferId, setEditingOfferId] = useState<string | null>(null);
+  const [offerForm, setOfferForm] = useState<any>({
+    id: "",
+    code: "",
+    title: "",
+    subtitle: "",
+    discountType: "flat",
+    discountValue: "50",
+    minOrderValue: "299",
+    icon: "🔥",
+    isActive: true,
+    oneTimePerUser: true,
+  });
+
+  // Category Management state
+  const [categories, setCategories] = useState<string[]>([]);
+  const [newCatInput, setNewCatInput] = useState("");
+  const [editingCatName, setEditingCatName] = useState<string | null>(null);
+  const [editCatInput, setEditCatInput] = useState("");
+
+  // Custom Sound state
+  const [soundType, setSoundType] = useState<"siren" | "bell" | "beep" | "custom">("siren");
+  const [customAudioUrl, setCustomAudioUrl] = useState<string | null>(null);
+
+  // Paytm & Payment Gateway Config state
+  const [paytmConfig, setPaytmConfig] = useState<any>({
+    merchantId: "",
+    merchantKey: "",
+    website: "DEFAULT",
+    upiId: "9966533466@ybl",
+    isActive: false,
+    enableUpi: true,
+    enableBank: true,
+    enableCod: true,
+    bankDetails: "State Bank of India | A/C: 1234567890 | IFSC: SBIN0001234 | Name: NA KIRRAAK ADDA",
+  });
+  const [paytmSaveMsg, setPaytmSaveMsg] = useState("");
+
+  // Employee Staff Management state
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [empForm, setEmpForm] = useState({
+    name: "",
+    role: "Kitchen Staff",
+    phone: "",
+    passcode: "",
+  });
+
+  // Daily Dashboard Metrics Manual Override state
+  const [showDailyEditor, setShowDailyEditor] = useState(false);
+  const [dailyOffsets, setDailyOffsets] = useState({
+    totalOrdersOffset: 0,
+    completedOrdersOffset: 0,
+    cancelledOrdersOffset: 0,
+    revenueOffset: 0,
+  });
+
+  // Roles & Permissions state
+  const [roles, setRoles] = useState<any[]>([]);
+  const [roleForm, setRoleForm] = useState({
+    name: "",
+    canEditMenu: false,
+    canManageOrders: true,
+    canManageRoles: false,
+    canViewAnalytics: false,
+  });
+
+  // Delivery Config state
+  const [deliveryConfig, setDeliveryConfig] = useState<{
+    storeLocation: { lat: number; lng: number; address: string };
+    freeRadiusKm: number;
+    chargeableRadiusStartKm: number;
+    chargeableRadiusEndKm: number;
+    gstRate: number;
+    packagingFee: number;
+    minOrderValue: number;
+    deliveryFees: Record<string, number>;
+  }>({
+    storeLocation: { lat: 17.3998, lng: 78.5630, address: "NA KIRRAAK ADDA, Uppal, Hyderabad" },
+    freeRadiusKm: 1,
+    chargeableRadiusStartKm: 1,
+    chargeableRadiusEndKm: 3,
+    gstRate: 18,
+    packagingFee: 20,
+    minOrderValue: 100,
+    deliveryFees: { "1-1.5": 40, "1.5-2": 50, "2-3": 60 },
+  });
+  const [deliverySaveMsg, setDeliverySaveMsg] = useState("");
+
+  // Form states matching Image 3
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     price: "",
-    category: "Pizza",
+    category: "Veg Pizza",
     image: "",
+    isVeg: true,
+    isBestseller: false,
   });
   const [editingId, setEditingId] = useState<string | null>(null);
 
+  // Audio alarm player for new unconfirmed orders
+  const playAlertSound = () => {
+    try {
+      if (soundType === "custom" && customAudioUrl) {
+        const audio = new Audio(customAudioUrl);
+        audio.play().catch(() => {});
+        return;
+      }
+
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      if (soundType === "siren") {
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(600, ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(1200, ctx.currentTime + 0.2);
+        osc.frequency.linearRampToValueAtTime(600, ctx.currentTime + 0.4);
+      } else if (soundType === "bell") {
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(1046.5, ctx.currentTime); // C6 bell
+      } else {
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+      }
+      
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+      
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      
+      osc.start();
+      osc.stop(ctx.currentTime + 0.4);
+    } catch (e) {}
+  };
+
+  const loadCategories = async () => {
+    try {
+      const res = await fetch("/api/categories");
+      if (res.ok) {
+        const data = await res.json();
+        setCategories(data);
+      }
+    } catch (e) {
+      console.error("Error loading categories:", e);
+    }
+  };
+
+  const loadPaytmConfig = async () => {
+    try {
+      const res = await fetch("/api/admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "getPaytmConfig" }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPaytmConfig(data);
+      }
+    } catch (e) {}
+  };
+
+  const loadEmployees = async () => {
+    try {
+      const res = await fetch("/api/admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "getEmployees" }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setEmployees(data);
+      }
+    } catch (e) {}
+  };
+
+  const loadRoles = async () => {
+    try {
+      const res = await fetch("/api/admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "getRoles" }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setRoles(data);
+      }
+    } catch (e) {}
+  };
+
+  const [emailForm, setEmailForm] = useState({
+    adminEmail: "nakirraakadda2026@gmail.com",
+    smtpHost: "smtp.gmail.com",
+    smtpPort: 587,
+    smtpUser: "nakirraakadda2026@gmail.com",
+    smtpPass: "",
+    senderName: "NA KIRRAAK ADDA",
+  });
+  const [emailMsg, setEmailMsg] = useState("");
+
+  const loadEmailConfig = async () => {
+    try {
+      const res = await fetch("/api/admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "getEmailConfig" }),
+      });
+      if (res.ok) {
+        const config = await res.json();
+        if (config) setEmailForm(config);
+      }
+    } catch (e) {}
+  };
+
+  const handleSaveEmailConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEmailMsg("");
+    const savedToken = localStorage.getItem("adminToken");
+    try {
+      const res = await fetch("/api/admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "saveEmailConfig",
+          token: savedToken,
+          emailData: emailForm,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setEmailForm(data.config);
+        setEmailMsg("✓ Admin Email & Mail Server Settings saved successfully!");
+      }
+    } catch (e) {
+      setEmailMsg("Error saving email configuration.");
+    }
+  };
+
+  const loadOffers = async () => {
+    try {
+      const savedToken = localStorage.getItem("adminToken");
+      const res = await fetch("/api/offers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "getAdminOffers", token: savedToken }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setOffers(data);
+      }
+    } catch (e) {}
+  };
+
+  const handleSaveOffer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!offerForm.code || !offerForm.title) return;
+    const savedToken = localStorage.getItem("adminToken");
+    try {
+      const res = await fetch("/api/offers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "saveOffer",
+          token: savedToken,
+          ...offerForm,
+        }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setOffers(updated);
+        setEditingOfferId(null);
+        setOfferForm({
+          id: "",
+          code: "",
+          title: "",
+          subtitle: "",
+          discountType: "flat",
+          discountValue: "50",
+          minOrderValue: "299",
+          icon: "🔥",
+          isActive: true,
+          oneTimePerUser: true,
+        });
+      }
+    } catch (e) {}
+  };
+
+  const handleToggleOffer = async (id: string) => {
+    const savedToken = localStorage.getItem("adminToken");
+    try {
+      const res = await fetch("/api/offers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "toggleOffer", token: savedToken, id }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setOffers(updated);
+      }
+    } catch (e) {}
+  };
+
+  const handleDeleteOffer = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this offer banner?")) return;
+    const savedToken = localStorage.getItem("adminToken");
+    try {
+      const res = await fetch("/api/offers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "deleteOffer", token: savedToken, id }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setOffers(updated);
+      }
+    } catch (e) {}
+  };
+
   useEffect(() => {
     const savedToken = localStorage.getItem("adminToken");
+    const savedName = localStorage.getItem("adminName");
+    const savedRole = localStorage.getItem("adminRole");
+    const savedPerms = localStorage.getItem("adminPermissions");
+    const savedSuper = localStorage.getItem("isSuperAdmin");
+
     if (!savedToken) {
       router.push("/admin/login");
       return;
     }
+
     setToken(savedToken);
+    if (savedName) setAdminName(savedName);
+    if (savedRole) setAdminRole(savedRole);
+    if (savedSuper !== null) setIsSuperAdmin(savedSuper === "true");
+
+    let userPerms = {
+      canEditMenu: true,
+      canManageOrders: true,
+      canManageRoles: true,
+      canViewAnalytics: true,
+    };
+
+    if (savedPerms) {
+      try {
+        userPerms = JSON.parse(savedPerms);
+        setPermissions(userPerms);
+      } catch (e) {}
+    }
+
+    // Set default active tab based on employee restrictions
+    if (savedSuper !== "true") {
+      if (!userPerms.canEditMenu && userPerms.canManageOrders) {
+        setActiveTab("orders");
+      } else if (!userPerms.canEditMenu && !userPerms.canManageOrders && (userPerms.canManageRoles || userPerms.canEditMenu)) {
+        setActiveTab("settings");
+      }
+    }
+
+    // Verify token with backend for real-time permissions check
+    fetch("/api/admin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "verify", token: savedToken }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.admin) {
+          if (data.admin.name) setAdminName(data.admin.name);
+          if (data.admin.role) setAdminRole(data.admin.role);
+          if (data.admin.isSuperAdmin !== undefined) setIsSuperAdmin(Boolean(data.admin.isSuperAdmin));
+          if (data.admin.permissions) {
+            setPermissions(data.admin.permissions);
+            if (!data.admin.isSuperAdmin && !data.admin.permissions.canEditMenu && data.admin.permissions.canManageOrders) {
+              setActiveTab("orders");
+            }
+          }
+        }
+      })
+      .catch(() => {});
+
     loadProducts();
     loadOrders();
+    loadDeliveryConfig();
+    loadCategories();
+    loadPaytmConfig();
+    loadEmployees();
+    loadRoles();
+    loadOffers();
+    loadEmailConfig();
+
+    // Auto-poll orders every 3 seconds for immediate notifications
+    const pollTimer = setInterval(loadOrders, 3000);
+    return () => clearInterval(pollTimer);
   }, [router]);
+
+  const exportOrdersToExcel = () => {
+    if (orders.length === 0) {
+      alert("No orders available to export.");
+      return;
+    }
+
+    const headers = [
+      "Order ID",
+      "Customer Name",
+      "Phone Number",
+      "Delivery Address",
+      "Ordered Items",
+      "Subtotal (₹)",
+      "GST (₹)",
+      "Delivery Charge (₹)",
+      "Grand Total (₹)",
+      "Payment Method",
+      "Order Status",
+      "Assigned Staff",
+      "Date & Time",
+    ];
+
+    const rows = orders.map((o: any) => {
+      let itemsText = "";
+      try {
+        const parsedItems = typeof o.items === "string" ? JSON.parse(o.items) : o.items;
+        if (Array.isArray(parsedItems)) {
+          itemsText = parsedItems.map((i: any) => `${i.name} x${i.qty}`).join(" | ");
+        }
+      } catch (e) {
+        itemsText = String(o.items || "");
+      }
+
+      const dateStr = o.createdAt ? new Date(o.createdAt).toLocaleString("en-IN") : "";
+
+      return [
+        `"${o.id || ""}"`,
+        `"${(o.customerName || "").replace(/"/g, '""')}"`,
+        `"${(o.phone || "").replace(/"/g, '""')}"`,
+        `"${(o.address || "").replace(/"/g, '""')}"`,
+        `"${itemsText.replace(/"/g, '""')}"`,
+        o.subtotal || 0,
+        o.gst || 0,
+        o.deliveryCharge || 0,
+        o.total || 0,
+        `"${(o.paymentMethod || "").replace(/"/g, '""')}"`,
+        `"${(o.status || "").replace(/"/g, '""')}"`,
+        `"${(o.assignedStaff || "Unassigned").replace(/"/g, '""')}"`,
+        `"${dateStr}"`,
+      ].join(",");
+    });
+
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `NA_KIRRAAK_ADDA_Orders_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleAddRole = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!roleForm.name.trim()) return;
+    try {
+      const res = await fetch("/api/admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "addRole", token, roleData: roleForm }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setRoles(data.roles || []);
+        setRoleForm({
+          name: "",
+          canEditMenu: false,
+          canManageOrders: true,
+          canManageRoles: false,
+          canViewAnalytics: false,
+        });
+      }
+    } catch (e) {}
+  };
+
+  const handleDeleteRole = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this Role / Designation?")) return;
+    try {
+      const res = await fetch("/api/admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "deleteRole", token, roleId: id }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setRoles(data.roles || []);
+      }
+    } catch (e) {}
+  };
+
+  const handleSavePaytmConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPaytmSaveMsg("");
+    try {
+      const res = await fetch("/api/admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "savePaytmConfig", token, paytmData: paytmConfig }),
+      });
+      if (res.ok) {
+        setPaytmSaveMsg("Paytm Business credentials updated successfully! 🎉");
+      }
+    } catch (e) {
+      setPaytmSaveMsg("Error saving Paytm credentials.");
+    }
+  };
+
+  const handleCreateEmployee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!empForm.name || !empForm.phone) return;
+    try {
+      const res = await fetch("/api/admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "createEmployee", token, employeeData: empForm }),
+      });
+      if (res.ok) {
+        setEmpForm({ name: "", role: "Kitchen Chef", phone: "", passcode: "" });
+        loadEmployees();
+      }
+    } catch (e) {}
+  };
+
+  const handleDeleteEmployee = async (id: string) => {
+    if (!confirm("Are you sure you want to remove this staff member?")) return;
+    try {
+      const res = await fetch("/api/admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "deleteEmployee", token, employeeId: id }),
+      });
+      if (res.ok) {
+        loadEmployees();
+      }
+    } catch (e) {}
+  };
+
+  const handleAssignStaff = async (orderId: string, staffName: string) => {
+    try {
+      const res = await fetch("/api/admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "assignStaff", token, orderId, staffName }),
+      });
+      if (res.ok) {
+        loadOrders();
+      }
+    } catch (e) {}
+  };
+
+  const handleAddCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCatInput.trim()) return;
+    try {
+      const res = await fetch("/api/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newCatInput.trim() }),
+      });
+      if (res.ok) {
+        setNewCatInput("");
+        loadCategories();
+      }
+    } catch (e) {}
+  };
+
+  const handleEditCategory = async (oldName: string) => {
+    if (!editCatInput.trim()) return;
+    try {
+      const res = await fetch("/api/categories", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ oldName, newName: editCatInput.trim() }),
+      });
+      if (res.ok) {
+        setEditingCatName(null);
+        setEditCatInput("");
+        loadCategories();
+        loadProducts();
+      }
+    } catch (e) {}
+  };
+
+  const handleDeleteCategory = async (name: string) => {
+    if (!confirm(`Are you sure you want to delete category "${name}"?`)) return;
+    try {
+      const res = await fetch(`/api/categories?name=${encodeURIComponent(name)}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        loadCategories();
+        loadProducts();
+      }
+    } catch (e) {}
+  };
+
+  // Continuously trigger alert sound if any unconfirmed order exists
+  const unconfirmedOrders = orders.filter((o) => o.status.toLowerCase().includes("received"));
+
+  useEffect(() => {
+    if (unconfirmedOrders.length > 0) {
+      playAlertSound();
+    }
+  }, [orders]);
+
+  const loadDeliveryConfig = async () => {
+    try {
+      const res = await fetch("/api/delivery/config");
+      if (res.ok) {
+        const data = await res.json();
+        setDeliveryConfig(data);
+      }
+    } catch (e) {
+      console.error("Error loading delivery config:", e);
+    }
+  };
+
+  const handleSaveDeliveryConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setDeliverySaveMsg("");
+    try {
+      const savedToken = localStorage.getItem("adminToken");
+      const res = await fetch("/api/delivery/config", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${savedToken}`,
+        },
+        body: JSON.stringify(deliveryConfig),
+      });
+      if (res.ok) {
+        setDeliverySaveMsg("Delivery settings updated successfully! 🎉");
+      } else {
+        const err = await res.json();
+        setDeliverySaveMsg(`Error: ${err.error || "Failed to update settings"}`);
+      }
+    } catch (e) {
+      setDeliverySaveMsg("Error connecting to server");
+    }
+    setLoading(false);
+  };
 
   const loadProducts = async () => {
     try {
@@ -79,6 +727,17 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData((prev) => ({ ...prev, image: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -103,31 +762,37 @@ export default function AdminDashboard() {
           name: "",
           description: "",
           price: "",
-          category: "Pizza",
+          category: "Veg Pizza",
           image: "",
+          isVeg: true,
+          isBestseller: false,
         });
         setEditingId(null);
         loadProducts();
       }
     } catch (error) {
       console.error("Error saving product:", error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
-  const handleDeleteProduct = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this product?")) return;
-
+  const handleToggleProductStatus = async (product: Product) => {
     try {
-      await fetch(`/api/products?id=${id}`, {
-        method: "DELETE",
+      await fetch("/api/products", {
+        method: "PUT",
         headers: {
+          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
+        body: JSON.stringify({
+          id: product.id,
+          isActive: !product.isActive,
+        }),
       });
       loadProducts();
     } catch (error) {
-      console.error("Error deleting product:", error);
+      console.error("Error toggling product status:", error);
     }
   };
 
@@ -138,26 +803,47 @@ export default function AdminDashboard() {
       price: product.price.toString(),
       category: product.category,
       image: product.image || "",
+      isVeg: product.isVeg ?? true,
+      isBestseller: product.isBestseller ?? false,
     });
     setEditingId(product.id);
   };
 
-  const handleUpdateOrderStatus = async (orderId: string, status: string) => {
-    const savedToken = localStorage.getItem("adminToken");
-    if (!savedToken) return;
+  const handleDeleteProduct = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this product?")) return;
 
     try {
-      await fetch("/api/admin", {
+      const response = await fetch(`/api/products?id=${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        loadProducts();
+      }
+    } catch (error) {
+      console.error("Error deleting product:", error);
+    }
+  };
+
+  const handleUpdateOrderStatus = async (orderId: string, status: string) => {
+    try {
+      const response = await fetch("/api/admin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "updateOrderStatus",
-          token: savedToken,
+          token,
           orderId,
           status,
         }),
       });
-      loadOrders();
+
+      if (response.ok) {
+        loadOrders();
+      }
     } catch (error) {
       console.error("Error updating order status:", error);
     }
@@ -165,147 +851,386 @@ export default function AdminDashboard() {
 
   const handleLogout = () => {
     localStorage.removeItem("adminToken");
-    localStorage.removeItem("adminName");
     router.push("/admin/login");
   };
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white">
+    <div className="min-h-screen bg-[#0D0A08] text-white">
       {/* Header */}
-      <div className="border-b border-white/10 bg-black/40 p-6">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <h1 className="text-3xl font-bold">NA KIRRAAK ADDA - Admin</h1>
+      <header className="border-b border-white/10 bg-black/40 px-6 py-4">
+        <div className="mx-auto flex max-w-7xl items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">🔥</span>
+            <div>
+              <h1 className="text-xl font-bold tracking-tight text-white">NA KIRRAAK ADDA</h1>
+              <p className="text-xs text-orange-400 font-extrabold mt-0.5">👤 {adminName} <span className="text-zinc-400">({adminRole})</span></p>
+            </div>
+          </div>
           <button
             onClick={handleLogout}
-            className="px-4 py-2 rounded-full border border-orange-500/40 text-orange-300 hover:bg-orange-500/10"
+            className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-xs font-semibold text-red-400 hover:bg-red-500/20 transition"
           >
             Logout
           </button>
         </div>
-      </div>
+      </header>
 
-      {/* Tabs */}
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="flex gap-4 mb-6 border-b border-white/10">
-          <button
-            onClick={() => setActiveTab("products")}
-            className={`px-4 py-3 font-semibold border-b-2 transition ${
-              activeTab === "products"
-                ? "border-orange-500 text-orange-400"
-                : "border-transparent text-zinc-400 hover:text-white"
-            }`}
-          >
-            Products Management
-          </button>
+      {/* Unconfirmed Orders Sound Alert Banner */}
+      {unconfirmedOrders.length > 0 && (
+        <div className="bg-[#FF6B00] text-black px-6 py-3 font-extrabold flex items-center justify-between shadow-2xl animate-pulse">
+          <div className="flex items-center gap-3">
+            <span className="text-xl">🔔</span>
+            <span className="text-sm">
+              ATTENTION: {unconfirmedOrders.length} NEW UNCONFIRMED ORDER({unconfirmedOrders.length > 1 ? "S" : ""}) RECEIVED! (Playing Sound Alert)
+            </span>
+          </div>
           <button
             onClick={() => setActiveTab("orders")}
-            className={`px-4 py-3 font-semibold border-b-2 transition ${
-              activeTab === "orders"
-                ? "border-orange-500 text-orange-400"
-                : "border-transparent text-zinc-400 hover:text-white"
-            }`}
+            className="rounded-full bg-black text-white px-4 py-1 text-xs font-bold hover:bg-zinc-800 transition"
           >
-            Order Management
+            View Orders Now →
           </button>
+        </div>
+      )}
+
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        {/* Admin Order & Sales Analytics Metric Bar + Download Excel Button */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+          <h2 className="text-xl font-black text-white flex items-center gap-2">
+            <span>📊</span> Business Overview & Analytics
+          </h2>
+          <div className="flex flex-wrap items-center gap-2">
+            {(isSuperAdmin || permissions.canViewAnalytics) && (
+              <button
+                onClick={() => setShowDailyEditor(!showDailyEditor)}
+                className="flex items-center gap-2 rounded-full border border-orange-500/40 bg-orange-500/10 px-4 py-2 text-xs font-bold text-orange-400 hover:bg-orange-500/20 transition"
+              >
+                <span>✏️</span> Daily Dashboard Edit
+              </button>
+            )}
+            <button
+              onClick={exportOrdersToExcel}
+              className="flex items-center gap-2 rounded-full bg-emerald-500 px-5 py-2 text-xs font-black text-black hover:bg-emerald-400 transition shadow-lg shadow-emerald-500/20"
+            >
+              <span>📥</span> Download Orders Excel (.xlsx / .csv)
+            </button>
+          </div>
+        </div>
+
+        {/* Daily Dashboard Manual Override Form Modal */}
+        {showDailyEditor && (isSuperAdmin || permissions.canViewAnalytics) && (
+          <div className="mb-6 rounded-2xl border border-orange-500/30 bg-[#19140F] p-5 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <span>✏️</span> Daily Metric Manual Override / Starting Offsets
+              </h3>
+              <button onClick={() => setShowDailyEditor(false)} className="text-xs text-zinc-500 hover:text-white">✕ Close</button>
+            </div>
+            <p className="text-xs text-zinc-400">
+              Admin can edit or add custom starting figures daily for Total Orders, Completed Orders, Cancelled Orders, and Sales Revenue!
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-zinc-400 mb-1">Total Orders Offset</label>
+                <input
+                  type="number"
+                  value={dailyOffsets.totalOrdersOffset}
+                  onChange={(e) => setDailyOffsets({ ...dailyOffsets, totalOrdersOffset: Number(e.target.value) })}
+                  className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-xs text-white outline-none focus:border-orange-500 font-mono"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-zinc-400 mb-1">Completed Orders Offset</label>
+                <input
+                  type="number"
+                  value={dailyOffsets.completedOrdersOffset}
+                  onChange={(e) => setDailyOffsets({ ...dailyOffsets, completedOrdersOffset: Number(e.target.value) })}
+                  className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-xs text-white outline-none focus:border-orange-500 font-mono"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-zinc-400 mb-1">Cancelled Orders Offset</label>
+                <input
+                  type="number"
+                  value={dailyOffsets.cancelledOrdersOffset}
+                  onChange={(e) => setDailyOffsets({ ...dailyOffsets, cancelledOrdersOffset: Number(e.target.value) })}
+                  className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-xs text-white outline-none focus:border-orange-500 font-mono"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-zinc-400 mb-1">Sales Revenue Offset (₹)</label>
+                <input
+                  type="number"
+                  value={dailyOffsets.revenueOffset}
+                  onChange={(e) => setDailyOffsets({ ...dailyOffsets, revenueOffset: Number(e.target.value) })}
+                  className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-xs text-white outline-none focus:border-orange-500 font-mono"
+                />
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                localStorage.setItem("adminDailyOffsets", JSON.stringify(dailyOffsets));
+                setShowDailyEditor(false);
+              }}
+              className="rounded-full bg-[#FF6B00] px-5 py-2 text-xs font-bold text-black hover:bg-orange-400 transition"
+            >
+              ✓ Save Daily Offsets
+            </button>
+          </div>
+        )}
+
+        <div className={`grid gap-4 mb-8 ${isSuperAdmin || permissions.canViewAnalytics ? "grid-cols-2 md:grid-cols-4" : "grid-cols-1 sm:grid-cols-3"}`}>
+          <div className="rounded-2xl border border-white/10 bg-[#16120E] p-4 text-center space-y-1 shadow-xl">
+            <span className="text-xl">📦</span>
+            <p className="text-2xl font-black text-white">{orders.length + dailyOffsets.totalOrdersOffset}</p>
+            <p className="text-[11px] font-extrabold uppercase text-zinc-400">Total Orders</p>
+          </div>
+
+          <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-center space-y-1 shadow-xl">
+            <span className="text-xl">✅</span>
+            <p className="text-2xl font-black text-emerald-300">
+              {orders.filter((o) => o.status.toLowerCase().includes("complete") || o.status.toLowerCase().includes("deliver")).length + dailyOffsets.completedOrdersOffset}
+            </p>
+            <p className="text-[11px] font-extrabold uppercase text-emerald-400">Completed Orders</p>
+          </div>
+
+          <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-center space-y-1 shadow-xl">
+            <span className="text-xl">❌</span>
+            <p className="text-2xl font-black text-red-400">
+              {orders.filter((o) => o.status.toLowerCase().includes("cancel")).length + dailyOffsets.cancelledOrdersOffset}
+            </p>
+            <p className="text-[11px] font-extrabold uppercase text-red-400">Cancelled Orders</p>
+          </div>
+
+          {(isSuperAdmin || permissions.canViewAnalytics) && (
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-center space-y-1 shadow-xl">
+              <span className="text-xl">💰</span>
+              <p className="text-2xl font-black text-emerald-400">
+                ₹{(orders.reduce((acc, o) => acc + (Number(o.total) || 0), 0) + dailyOffsets.revenueOffset).toFixed(0)}
+              </p>
+              <p className="text-[11px] font-extrabold uppercase text-emerald-300">Total Sales (Revenue)</p>
+            </div>
+          )}
+        </div>
+
+        {/* Clean Main Navigation Tabs */}
+        <div className="mb-8 flex flex-wrap border-b border-white/10 gap-3 pb-1">
+          {(isSuperAdmin || permissions.canEditMenu) && (
+            <button
+              onClick={() => setActiveTab("products")}
+              className={`px-6 py-3 text-sm font-extrabold border-b-2 transition flex items-center gap-2 ${
+                activeTab === "products"
+                  ? "border-orange-500 text-orange-400"
+                  : "border-transparent text-zinc-400 hover:text-white"
+              }`}
+            >
+              <span>🍕</span> Product Management
+            </button>
+          )}
+
+          {(isSuperAdmin || permissions.canManageOrders) && (
+            <button
+              onClick={() => setActiveTab("orders")}
+              className={`px-6 py-3 text-sm font-extrabold border-b-2 transition flex items-center gap-2 ${
+                activeTab === "orders"
+                  ? "border-orange-500 text-orange-400"
+                  : "border-transparent text-zinc-400 hover:text-white"
+              }`}
+            >
+              <span>📦</span> Order Management
+            </button>
+          )}
+
+          {(isSuperAdmin || permissions.canEditMenu || permissions.canManageRoles) && (
+            <button
+              onClick={() => setActiveTab("settings")}
+              className={`px-6 py-3 text-sm font-extrabold border-b-2 transition flex items-center gap-2 ${
+                activeTab === "settings"
+                  ? "border-orange-500 text-orange-400"
+                  : "border-transparent text-zinc-400 hover:text-white"
+              }`}
+            >
+              <span>⚙️</span> Settings & Administration
+            </button>
+          )}
         </div>
 
         {/* Products Tab */}
         {activeTab === "products" && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Product Form */}
-            <div className="rounded-[2rem] border border-orange-500/20 bg-zinc-950/90 p-6">
-              <h2 className="text-xl font-bold mb-4">
-                {editingId ? "Edit Product" : "Add New Product"}
+          <div className="space-y-8 max-w-4xl mx-auto">
+            {/* Add product form matching Image 3 */}
+            <div className="rounded-[1.75rem] border border-white/10 bg-[#16120E] p-6 lg:p-8 space-y-6 shadow-2xl">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <span>➕</span> {editingId ? "Edit Item" : "Add a new item"}
               </h2>
-              <form onSubmit={handleAddProduct} className="space-y-4">
+
+              <form onSubmit={handleAddProduct} className="space-y-5">
+                {/* Item Name */}
                 <div>
-                  <label className="block text-sm font-semibold text-zinc-300 mb-2">
-                    Product Name
-                  </label>
+                  <label className="block text-xs font-semibold text-zinc-400 mb-1.5">Item name</label>
                   <input
                     type="text"
                     value={formData.name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
-                    }
-                    className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-white"
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-white text-sm outline-none focus:border-orange-500"
+                    placeholder="e.g. Peri Peri Pizza"
                     required
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-zinc-300 mb-2">
-                    Description
-                  </label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) =>
-                      setFormData({ ...formData, description: e.target.value })
-                    }
-                    className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-white min-h-24"
-                    required
-                  />
+                {/* Price & Category */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-400 mb-1.5">Price (₹)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.price}
+                      onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                      className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-white text-sm outline-none focus:border-orange-500"
+                      placeholder="249"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-400 mb-1.5">Category</label>
+                    <select
+                      value={formData.category}
+                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                      className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-white text-sm outline-none focus:border-orange-500"
+                    >
+                      {categories.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
+                {/* Description */}
                 <div>
-                  <label className="block text-sm font-semibold text-zinc-300 mb-2">
-                    Price (₹)
-                  </label>
+                  <label className="block text-xs font-semibold text-zinc-400 mb-1.5">Description</label>
                   <input
-                    type="number"
-                    step="0.01"
-                    value={formData.price}
-                    onChange={(e) =>
-                      setFormData({ ...formData, price: e.target.value })
-                    }
-                    className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-white"
+                    type="text"
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-white text-sm outline-none focus:border-orange-500"
+                    placeholder="Short, kirrak description"
                     required
                   />
                 </div>
 
+                {/* Veg / Non-veg */}
                 <div>
-                  <label className="block text-sm font-semibold text-zinc-300 mb-2">
-                    Category
-                  </label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) =>
-                      setFormData({ ...formData, category: e.target.value })
-                    }
-                    className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-white"
-                  >
-                    <option>Pizza</option>
-                    <option>Burger</option>
-                    <option>Sandwich</option>
-                    <option>Hot Beverages</option>
-                    <option>Cold Beverages</option>
-                    <option>Snacks & Fast Food</option>
-                  </select>
+                  <label className="block text-xs font-semibold text-zinc-400 mb-1.5">Veg / Non-veg</label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, isVeg: true })}
+                      className={`flex items-center justify-center gap-2 py-2.5 rounded-xl border text-sm font-semibold transition ${
+                        formData.isVeg
+                          ? "border-emerald-500/80 bg-emerald-500/10 text-emerald-400"
+                          : "border-white/10 bg-black/40 text-zinc-400 hover:text-white"
+                      }`}
+                    >
+                      <span>🟢</span> Veg
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, isVeg: false })}
+                      className={`flex items-center justify-center gap-2 py-2.5 rounded-xl border text-sm font-semibold transition ${
+                        !formData.isVeg
+                          ? "border-amber-700/80 bg-amber-900/20 text-amber-500"
+                          : "border-white/10 bg-black/40 text-zinc-400 hover:text-white"
+                      }`}
+                    >
+                      <span>🔴</span> Non-veg
+                    </button>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-zinc-300 mb-2">
-                    Image URL
-                  </label>
+                {/* Item Image & Bestseller Toggle */}
+                <div className="space-y-3">
+                  <label className="block text-xs font-semibold text-zinc-400">Item image</label>
+
+                  {/* Clickable Image Upload Box */}
+                  <div
+                    onClick={() => document.getElementById("product-image-file-input")?.click()}
+                    className="w-full cursor-pointer rounded-xl border border-dashed border-orange-500/40 bg-black/60 px-4 py-3 text-center text-zinc-300 transition hover:border-orange-500 hover:bg-black/80 flex flex-col items-center justify-center gap-2"
+                  >
+                    {formData.image ? (
+                      <div className="flex items-center justify-between w-full">
+                        <div className="flex items-center gap-3">
+                          {formData.image.startsWith("data:") || formData.image.startsWith("http") ? (
+                            <img src={formData.image} alt="Preview" className="h-10 w-10 rounded-lg object-cover border border-white/10 shrink-0" />
+                          ) : (
+                            <span className="text-xl">📷</span>
+                          )}
+                          <span className="text-xs text-emerald-400 font-semibold truncate max-w-[200px]">Image selected ✓</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setFormData({ ...formData, image: "" });
+                          }}
+                          className="text-xs text-red-400 hover:underline px-2 py-1"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center gap-2 py-1">
+                        <span className="text-lg">📷</span>
+                        <span className="text-xs text-zinc-400">Click to upload image file from device (or skip for emoji)</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Hidden File Input */}
+                  <input
+                    id="product-image-file-input"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageFileChange}
+                    className="hidden"
+                  />
+
+                  {/* Optional Image URL Input */}
                   <input
                     type="text"
                     value={formData.image}
-                    onChange={(e) =>
-                      setFormData({ ...formData, image: e.target.value })
-                    }
-                    className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-white"
-                    placeholder="https://example.com/image.jpg"
+                    onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                    className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-1.5 text-xs text-zinc-400 outline-none focus:border-orange-500"
+                    placeholder="Or paste image URL (e.g. https://...)"
                   />
+
+                  <div className="flex items-center gap-2 pt-1">
+                    <input
+                      type="checkbox"
+                      id="bestseller-check"
+                      checked={formData.isBestseller}
+                      onChange={(e) => setFormData({ ...formData, isBestseller: e.target.checked })}
+                      className="rounded border-white/10 accent-orange-500 h-4 w-4"
+                    />
+                    <label htmlFor="bestseller-check" className="text-xs text-zinc-300 cursor-pointer select-none">
+                      Mark as Bestseller ⭐
+                    </label>
+                  </div>
                 </div>
 
-                <div className="flex gap-2">
+                {/* Form Buttons */}
+                <div className="pt-2 flex gap-3">
                   <button
                     type="submit"
                     disabled={loading}
-                    className="flex-1 rounded-full bg-orange-500 px-4 py-2 font-semibold text-black hover:bg-orange-400 disabled:opacity-50"
+                    className="w-full rounded-xl bg-orange-500 py-3 font-bold text-black hover:bg-orange-400 transition text-sm shadow-lg shadow-orange-500/20 disabled:opacity-50"
                   >
-                    {loading ? "Saving..." : "Save Product"}
+                    {loading ? "Saving..." : editingId ? "Update Item" : "Add Item to Menu"}
                   </button>
+
                   {editingId && (
                     <button
                       type="button"
@@ -315,11 +1240,13 @@ export default function AdminDashboard() {
                           name: "",
                           description: "",
                           price: "",
-                          category: "Pizza",
+                          category: "Veg Pizza",
                           image: "",
+                          isVeg: true,
+                          isBestseller: false,
                         });
                       }}
-                      className="flex-1 rounded-full border border-orange-500/40 px-4 py-2 font-semibold text-orange-300 hover:bg-orange-500/10"
+                      className="px-6 rounded-xl border border-white/20 text-zinc-300 text-sm font-semibold hover:bg-white/10"
                     >
                       Cancel
                     </button>
@@ -328,91 +1255,1361 @@ export default function AdminDashboard() {
               </form>
             </div>
 
-            {/* Products List */}
-            <div className="lg:col-span-2 space-y-3">
-              {products.map((product) => (
-                <div
-                  key={product.id}
-                  className="rounded-xl border border-white/10 bg-black/60 p-4"
-                >
-                  <div className="flex justify-between items-start gap-3">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-white">{product.name}</h3>
-                      <p className="text-sm text-zinc-400">{product.description}</p>
-                      <div className="mt-2 flex gap-2 text-sm">
-                        <span className="text-orange-400">₹{product.price}</span>
-                        <span className="text-zinc-500">{product.category}</span>
+            {/* Current Menu matching Image 3 */}
+            <div className="rounded-[1.75rem] border border-white/10 bg-[#16120E] p-6 lg:p-8 space-y-4 shadow-2xl">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <span>🍽️</span> Current menu
+              </h2>
+
+              <div className="space-y-3 pt-2 max-h-[600px] overflow-y-auto pr-1">
+                {products.length === 0 ? (
+                  <p className="text-sm text-zinc-400 italic">No products added yet.</p>
+                ) : (
+                  <>
+                    {/* Active Products */}
+                    <div className="space-y-3">
+                      {products.filter((p) => p.isActive !== false).map((product) => (
+                        <div
+                          key={product.id}
+                          className="flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-black/40 p-4 transition hover:border-white/20"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="text-3xl flex items-center justify-center w-12 h-12 rounded-xl bg-zinc-900 border border-white/5 shrink-0 overflow-hidden">
+                              {product.image && (product.image.startsWith("http") || product.image.startsWith("data:")) ? (
+                                <img src={product.image} alt={product.name} className="w-full h-full object-cover rounded-xl" />
+                              ) : (
+                                product.category.toLowerCase().includes("pizza") ? "🍕" :
+                                product.category.toLowerCase().includes("burger") ? "🍔" :
+                                product.category.toLowerCase().includes("sandwich") ? "🥪" :
+                                product.category.toLowerCase().includes("beverage") ? "☕" : "🍟"
+                              )}
+                            </div>
+
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-semibold text-white text-sm">{product.name}</h3>
+                                <span className="text-xs">{product.isVeg ? "🟢" : "🔴"}</span>
+                                {product.isBestseller && (
+                                  <span className="bg-orange-500/20 text-orange-400 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                                    Bestseller
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-zinc-400 mt-0.5">
+                                ₹{product.price} · <span className="text-zinc-500">{product.category}</span>
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3">
+                            {/* Toggle active switch */}
+                            <button
+                              onClick={() => handleToggleProductStatus(product)}
+                              className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors bg-emerald-500"
+                              title="Click to Disable Item"
+                            >
+                              <span className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-6" />
+                            </button>
+
+                            <button
+                              onClick={() => handleEditProduct(product)}
+                              className="px-3 py-1.5 rounded-lg border border-orange-500/40 text-orange-400 hover:bg-orange-500/10 text-xs font-semibold"
+                            >
+                              Edit
+                            </button>
+
+                            <button
+                              onClick={() => handleDeleteProduct(product.id)}
+                              className="px-3 py-1.5 rounded-lg border border-red-500/40 text-red-400 hover:bg-red-500/10 text-xs font-semibold"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Disabled Products Section — Stored at Bottom */}
+                    {products.some((p) => p.isActive === false) && (
+                      <div className="pt-6 border-t border-dashed border-red-500/30 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-black uppercase text-red-400 tracking-wider flex items-center gap-1.5">
+                            <span>🔻</span> Disabled / Inactive Products ({products.filter((p) => p.isActive === false).length}) — Stored at Bottom
+                          </h4>
+                          <span className="text-[11px] text-zinc-500">Toggle switch to re-activate items anytime</span>
+                        </div>
+
+                        {products.filter((p) => p.isActive === false).map((product) => (
+                          <div
+                            key={product.id}
+                            className="flex items-center justify-between gap-4 rounded-xl border border-dashed border-red-500/30 bg-red-950/20 p-4 opacity-80 transition hover:opacity-100"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="text-3xl flex items-center justify-center w-12 h-12 rounded-xl bg-zinc-900 border border-white/5 shrink-0 overflow-hidden opacity-60">
+                                {product.image && (product.image.startsWith("http") || product.image.startsWith("data:")) ? (
+                                  <img src={product.image} alt={product.name} className="w-full h-full object-cover rounded-xl" />
+                                ) : (
+                                  product.category.toLowerCase().includes("pizza") ? "🍕" :
+                                  product.category.toLowerCase().includes("burger") ? "🍔" :
+                                  product.category.toLowerCase().includes("sandwich") ? "🥪" :
+                                  product.category.toLowerCase().includes("beverage") ? "☕" : "🍟"
+                                )}
+                              </div>
+
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <h3 className="font-semibold text-zinc-300 text-sm line-through decoration-red-500/70">{product.name}</h3>
+                                  <span className="bg-red-500/20 text-red-300 border border-red-500/40 text-[10px] px-2 py-0.5 rounded-full font-extrabold uppercase">
+                                    Disabled
+                                  </span>
+                                </div>
+                                <p className="text-xs text-zinc-500 mt-0.5">
+                                  ₹{product.price} · <span>{product.category}</span>
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                              {/* Re-activate Switch */}
+                              <button
+                                onClick={() => handleToggleProductStatus(product)}
+                                className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors bg-zinc-700 hover:bg-emerald-600"
+                                title="Click to Re-Activate Item"
+                              >
+                                <span className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-1" />
+                              </button>
+
+                              <button
+                                onClick={() => handleEditProduct(product)}
+                                className="px-3 py-1.5 rounded-lg border border-orange-500/40 text-orange-400 hover:bg-orange-500/10 text-xs font-semibold"
+                              >
+                                Edit
+                              </button>
+
+                              <button
+                                onClick={() => handleDeleteProduct(product.id)}
+                                className="px-3 py-1.5 rounded-lg border border-red-500/40 text-red-400 hover:bg-red-500/10 text-xs font-semibold"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEditProduct(product)}
-                        className="px-3 py-1 rounded-full border border-orange-500/40 text-orange-300 hover:bg-orange-500/10 text-sm"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteProduct(product.id)}
-                        className="px-3 py-1 rounded-full border border-red-500/40 text-red-300 hover:bg-red-500/10 text-sm"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Incoming Orders Section matching Image 3 */}
+            <div className="rounded-[1.75rem] border border-white/10 bg-[#16120E] p-6 lg:p-8 space-y-4 shadow-2xl">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <span>🔔</span> Incoming orders
+              </h2>
+              <div className="py-8 text-center border border-dashed border-white/10 rounded-2xl bg-black/20">
+                <p className="text-sm text-zinc-400">
+                  {orders.length > 0
+                    ? `You have ${orders.length} orders in queue. Switch to Order Management tab to manage.`
+                    : "No orders yet — place one from the Customer App."}
+                </p>
+              </div>
             </div>
           </div>
         )}
 
         {/* Orders Tab */}
-        {activeTab === "orders" && (
-          <div>
-            <h2 className="text-2xl font-bold mb-6">Recent Orders</h2>
-            <div className="space-y-4">
-              {orders.map((order) => (
-                <div
-                  key={order.id}
-                  className="rounded-xl border border-white/10 bg-black/60 p-4"
-                >
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {activeTab === "orders" && (isSuperAdmin || permissions.canManageOrders) && (
+          <div className="space-y-4 max-w-4xl mx-auto">
+            {orders.length === 0 ? (
+              <div className="rounded-2xl border border-white/10 bg-zinc-950/90 p-8 text-center text-zinc-400">
+                No orders yet.
+              </div>
+            ) : (
+              orders.map((order) => (
+                <div key={order.id} className="rounded-2xl border border-white/10 bg-zinc-950/90 p-6">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                      <p className="text-sm text-zinc-400">Customer</p>
-                      <p className="font-semibold text-white">{order.customerName}</p>
-                      <p className="text-sm text-zinc-500">{order.phone}</p>
+                      <h3 className="font-semibold text-white">{order.customerName}</h3>
+                      <p className="text-sm text-zinc-400">{order.phone}</p>
+                      <p className="text-sm text-zinc-400">{order.address}</p>
+                      <p className="mt-2 font-semibold text-orange-400">₹{order.total}</p>
                     </div>
-                    <div>
-                      <p className="text-sm text-zinc-400">Order Details</p>
-                      <p className="font-semibold text-white">Total: ₹{order.total}</p>
-                      <p className="text-sm text-zinc-500">
-                        Order ID: {order.id.slice(0, 12)}...
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-zinc-400">Address</p>
-                      <p className="text-sm text-white">{order.address}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-zinc-400 mb-2">Order Status</p>
-                      <select
-                        value={order.status}
-                        onChange={(e) =>
-                          handleUpdateOrderStatus(order.id, e.target.value)
-                        }
-                        className="px-3 py-2 rounded-full border border-orange-500/40 bg-black/60 text-white text-sm"
-                      >
-                        <option>Received</option>
-                        <option>Preparing</option>
-                        <option>Ready for Pickup</option>
-                        <option>Out for Delivery</option>
-                        <option>Delivered</option>
-                        <option>Cancelled</option>
-                      </select>
+                    <div className="flex flex-col items-start gap-2 sm:items-end">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-zinc-400">Status:</span>
+                        <select
+                          value={order.status}
+                          onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value)}
+                          className="rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm text-white outline-none focus:border-orange-500 font-bold"
+                        >
+                          <option value="Received">Received 🟡</option>
+                          <option value="Preparing">Preparing 👨‍🍳</option>
+                          <option value="Out for Delivery">Out for Delivery 🛵</option>
+                          <option value="Completed">Completed ✅</option>
+                          <option value="Cancelled">Cancelled ❌</option>
+                        </select>
+                      </div>
+
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs text-zinc-400">Assign Staff:</span>
+                        <select
+                          value={(order as any).assignedStaff || ""}
+                          onChange={(e) => handleAssignStaff(order.id, e.target.value)}
+                          className="rounded-xl border border-white/10 bg-black/60 px-3 py-1.5 text-xs text-orange-300 outline-none"
+                        >
+                          <option value="">-- Unassigned --</option>
+                          {employees.map((emp) => (
+                            <option key={emp.id} value={`${emp.name} (${emp.role})`}>
+                              {emp.name} ({emp.role})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                   </div>
                 </div>
-              ))}
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Settings Tab (Grouping Categories, Sound, Paytm, Staff, Delivery under Settings) */}
+        {activeTab === "settings" && (
+          <div className="space-y-6 max-w-4xl mx-auto">
+            {/* Settings Sub-Tab Navigation Bar */}
+            <div className="rounded-2xl border border-white/10 bg-[#16120E] p-2 flex flex-wrap gap-2 shadow-xl mb-6">
+              {(isSuperAdmin || permissions.canEditMenu) && (
+                <button
+                  onClick={() => setSettingsSubTab("categories")}
+                  className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-1.5 ${
+                    settingsSubTab === "categories"
+                      ? "bg-[#FF6B00] text-black shadow-lg shadow-orange-500/20"
+                      : "text-zinc-400 hover:text-white hover:bg-black/40"
+                  }`}
+                >
+                  <span>📁</span> Food Categories
+                </button>
+              )}
+
+              {(isSuperAdmin || permissions.canManageOrders) && (
+                <button
+                  onClick={() => setSettingsSubTab("sound")}
+                  className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-1.5 ${
+                    settingsSubTab === "sound"
+                      ? "bg-[#FF6B00] text-black shadow-lg shadow-orange-500/20"
+                      : "text-zinc-400 hover:text-white hover:bg-black/40"
+                  }`}
+                >
+                  <span>🔔</span> Sound Alert Settings
+                </button>
+              )}
+
+              {(isSuperAdmin || permissions.canManageRoles) && (
+                <button
+                  onClick={() => setSettingsSubTab("paytm")}
+                  className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-1.5 ${
+                    settingsSubTab === "paytm"
+                      ? "bg-[#FF6B00] text-black shadow-lg shadow-orange-500/20"
+                      : "text-zinc-400 hover:text-white hover:bg-black/40"
+                  }`}
+                >
+                  <span>💳</span> Paytm & Payment Gateways
+                </button>
+              )}
+
+              {(isSuperAdmin || permissions.canManageRoles) && (
+                <button
+                  onClick={() => setSettingsSubTab("employees")}
+                  className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-1.5 ${
+                    settingsSubTab === "employees"
+                      ? "bg-[#FF6B00] text-black shadow-lg shadow-orange-500/20"
+                      : "text-zinc-400 hover:text-white hover:bg-black/40"
+                  }`}
+                >
+                  <span>👥</span> Staff & Role Permissions
+                </button>
+              )}
+
+              {(isSuperAdmin || permissions.canManageRoles) && (
+                <button
+                  onClick={() => setSettingsSubTab("delivery")}
+                  className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-1.5 ${
+                    settingsSubTab === "delivery"
+                      ? "bg-[#FF6B00] text-black shadow-lg shadow-orange-500/20"
+                      : "text-zinc-400 hover:text-white hover:bg-black/40"
+                  }`}
+                >
+                  <span>🛵</span> Delivery Settings
+                </button>
+              )}
+
+              {(isSuperAdmin || permissions.canEditMenu || permissions.canManageRoles) && (
+                <button
+                  onClick={() => setSettingsSubTab("offers")}
+                  className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-1.5 ${
+                    settingsSubTab === "offers"
+                      ? "bg-[#FF6B00] text-black shadow-lg shadow-orange-500/20"
+                      : "text-zinc-400 hover:text-white hover:bg-black/40"
+                  }`}
+                >
+                  <span>🎟️</span> Offers & Coupons
+                </button>
+              )}
+
+              {(isSuperAdmin || permissions.canManageRoles) && (
+                <button
+                  onClick={() => setSettingsSubTab("email")}
+                  className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center gap-1.5 ${
+                    settingsSubTab === "email"
+                      ? "bg-[#FF6B00] text-black shadow-lg shadow-orange-500/20"
+                      : "text-zinc-400 hover:text-white hover:bg-black/40"
+                  }`}
+                >
+                  <span>📧</span> Admin Email & Mail Server
+                </button>
+              )}
             </div>
+
+            {/* Email & Mail Server Sub-Tab */}
+            {settingsSubTab === "email" && (isSuperAdmin || permissions.canManageRoles) && (
+              <div className="space-y-8 max-w-4xl mx-auto">
+                <div className="rounded-[1.75rem] border border-white/10 bg-[#16120E] p-6 lg:p-8 space-y-6 shadow-2xl">
+                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    <span>📧</span> Admin Email Alerts & SMTP Mail Server Settings
+                  </h2>
+                  <p className="text-xs text-zinc-400">
+                    Configure the Admin recipient email address where all order alerts & status updates are sent, along with SMTP credentials to dispatch user password reset verification emails!
+                  </p>
+
+                  <form onSubmit={handleSaveEmailConfig} className="space-y-4 rounded-2xl border border-white/10 bg-black/40 p-5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="md:col-span-2">
+                        <label className="block text-xs font-bold text-orange-400 mb-1">
+                          Admin Recipient Email Address (Receives all new order alerts & status updates)
+                        </label>
+                        <input
+                          type="email"
+                          value={emailForm.adminEmail}
+                          onChange={(e) => setEmailForm({ ...emailForm, adminEmail: e.target.value })}
+                          placeholder="e.g. nakirraakadda2026@gmail.com"
+                          className="w-full rounded-xl border border-white/10 bg-black/60 px-3.5 py-2 text-xs text-white outline-none focus:border-orange-500 font-semibold"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs text-zinc-400 mb-1">Sender Name (Shown on outgoing emails)</label>
+                        <input
+                          type="text"
+                          value={emailForm.senderName}
+                          onChange={(e) => setEmailForm({ ...emailForm, senderName: e.target.value })}
+                          placeholder="NA KIRRAAK ADDA"
+                          className="w-full rounded-xl border border-white/10 bg-black/60 px-3.5 py-2 text-xs text-white outline-none focus:border-orange-500"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs text-zinc-400 mb-1">SMTP Server Host</label>
+                        <input
+                          type="text"
+                          value={emailForm.smtpHost}
+                          onChange={(e) => setEmailForm({ ...emailForm, smtpHost: e.target.value })}
+                          placeholder="smtp.gmail.com"
+                          className="w-full rounded-xl border border-white/10 bg-black/60 px-3.5 py-2 text-xs text-white outline-none focus:border-orange-500 font-mono"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs text-zinc-400 mb-1">SMTP Port (587 TLS or 465 SSL)</label>
+                        <input
+                          type="number"
+                          value={emailForm.smtpPort}
+                          onChange={(e) => setEmailForm({ ...emailForm, smtpPort: Number(e.target.value) })}
+                          placeholder="587"
+                          className="w-full rounded-xl border border-white/10 bg-black/60 px-3.5 py-2 text-xs text-white outline-none focus:border-orange-500 font-mono"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs text-zinc-400 mb-1">SMTP Username / Email</label>
+                        <input
+                          type="text"
+                          value={emailForm.smtpUser}
+                          onChange={(e) => setEmailForm({ ...emailForm, smtpUser: e.target.value })}
+                          placeholder="nakirraakadda2026@gmail.com"
+                          className="w-full rounded-xl border border-white/10 bg-black/60 px-3.5 py-2 text-xs text-white outline-none focus:border-orange-500"
+                        />
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <label className="block text-xs text-zinc-400 mb-1">
+                          SMTP App Password (e.g. Gmail 16-character App Password)
+                        </label>
+                        <input
+                          type="password"
+                          value={emailForm.smtpPass}
+                          onChange={(e) => setEmailForm({ ...emailForm, smtpPass: e.target.value })}
+                          placeholder="Enter Gmail App Password"
+                          className="w-full rounded-xl border border-white/10 bg-black/60 px-3.5 py-2 text-xs text-white outline-none focus:border-orange-500 font-mono"
+                        />
+                        <p className="text-[10px] text-zinc-500 mt-1">
+                          💡 Tip for Gmail: Go to Google Account &gt; Security &gt; 2-Step Verification &gt; App Passwords to generate a 16-character app password.
+                        </p>
+                      </div>
+                    </div>
+
+                    {emailMsg && (
+                      <p className={`text-xs font-semibold ${emailMsg.startsWith("✓") ? "text-emerald-400" : "text-red-400"}`}>
+                        {emailMsg}
+                      </p>
+                    )}
+
+                    <div className="pt-2">
+                      <button
+                        type="submit"
+                        className="rounded-full bg-[#FF6B00] px-6 py-2 text-xs font-extrabold text-black hover:bg-orange-400 transition shadow-lg"
+                      >
+                        ✓ Save Admin Email & Mail Server Settings
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {/* Offers & Coupon Banners Sub-Tab */}
+            {settingsSubTab === "offers" && (isSuperAdmin || permissions.canEditMenu || permissions.canManageRoles) && (
+              <div className="space-y-8 max-w-4xl mx-auto">
+                <div className="rounded-[1.75rem] border border-white/10 bg-[#16120E] p-6 lg:p-8 space-y-6 shadow-2xl">
+                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    <span>🎟️</span> Manage Homepage Offer Banners & Coupons
+                  </h2>
+                  <p className="text-xs text-zinc-400">
+                    Create and manage special discounts & coupon codes. Offers added here automatically scroll on the customer homepage slider and are locked to 1-time redemption per phone/device!
+                  </p>
+
+                  {/* Add / Edit Offer Form */}
+                  <form onSubmit={handleSaveOffer} className="space-y-4 rounded-2xl border border-white/10 bg-black/40 p-5">
+                    <h3 className="text-xs font-bold text-orange-400 uppercase tracking-wider">
+                      {editingOfferId ? "✏️ Edit Offer Banner" : "➕ Create New Offer / Coupon"}
+                    </h3>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs text-zinc-400 mb-1">Coupon Code (e.g. KIRRAAK50)</label>
+                        <input
+                          type="text"
+                          value={offerForm.code}
+                          onChange={(e) => setOfferForm({ ...offerForm, code: e.target.value.toUpperCase() })}
+                          placeholder="e.g. KIRRAAK50"
+                          className="w-full rounded-xl border border-white/10 bg-black/60 px-3.5 py-2 text-xs text-white uppercase outline-none focus:border-orange-500 font-mono"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs text-zinc-400 mb-1">Icon / Emoji</label>
+                        <input
+                          type="text"
+                          value={offerForm.icon}
+                          onChange={(e) => setOfferForm({ ...offerForm, icon: e.target.value })}
+                          placeholder="🔥 or 🍔 or 🛵"
+                          className="w-full rounded-xl border border-white/10 bg-black/60 px-3.5 py-2 text-xs text-white outline-none focus:border-orange-500"
+                        />
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <label className="block text-xs text-zinc-400 mb-1">Title (Displayed on Homepage Slider)</label>
+                        <input
+                          type="text"
+                          value={offerForm.title}
+                          onChange={(e) => setOfferForm({ ...offerForm, title: e.target.value })}
+                          placeholder="e.g. Adda Pe Swagat Hai! ₹50 Off"
+                          className="w-full rounded-xl border border-white/10 bg-black/60 px-3.5 py-2 text-xs text-white outline-none focus:border-orange-500"
+                          required
+                        />
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <label className="block text-xs text-zinc-400 mb-1">Subtitle / Description</label>
+                        <input
+                          type="text"
+                          value={offerForm.subtitle}
+                          onChange={(e) => setOfferForm({ ...offerForm, subtitle: e.target.value })}
+                          placeholder="e.g. Use code KIRRAAK50 on orders above ₹299"
+                          className="w-full rounded-xl border border-white/10 bg-black/60 px-3.5 py-2 text-xs text-white outline-none focus:border-orange-500"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs text-zinc-400 mb-1">Discount Type</label>
+                        <select
+                          value={offerForm.discountType}
+                          onChange={(e) => setOfferForm({ ...offerForm, discountType: e.target.value })}
+                          className="w-full rounded-xl border border-white/10 bg-black/60 px-3.5 py-2 text-xs text-white outline-none focus:border-orange-500 font-semibold"
+                        >
+                          <option value="flat">Flat Amount (₹ Off)</option>
+                          <option value="percent">Percentage (% Off)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs text-zinc-400 mb-1">Discount Value ({offerForm.discountType === "flat" ? "₹" : "%"})</label>
+                        <input
+                          type="number"
+                          value={offerForm.discountValue}
+                          onChange={(e) => setOfferForm({ ...offerForm, discountValue: e.target.value })}
+                          className="w-full rounded-xl border border-white/10 bg-black/60 px-3.5 py-2 text-xs text-white outline-none focus:border-orange-500 font-mono"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs text-zinc-400 mb-1">Minimum Order Value (₹)</label>
+                        <input
+                          type="number"
+                          value={offerForm.minOrderValue}
+                          onChange={(e) => setOfferForm({ ...offerForm, minOrderValue: e.target.value })}
+                          className="w-full rounded-xl border border-white/10 bg-black/60 px-3.5 py-2 text-xs text-white outline-none focus:border-orange-500 font-mono"
+                          required
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between p-3 rounded-xl border border-white/10 bg-black/40">
+                        <div>
+                          <label className="text-xs font-bold text-orange-300 block">Strict 1-Time Limit Per Device/Mobile</label>
+                          <span className="text-[10px] text-zinc-400">Blocks duplicate coupon redemption on same phone or browser</span>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={offerForm.oneTimePerUser}
+                          onChange={(e) => setOfferForm({ ...offerForm, oneTimePerUser: e.target.checked })}
+                          className="h-4 w-4 accent-orange-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 pt-2">
+                      <button
+                        type="submit"
+                        className="rounded-full bg-[#FF6B00] px-6 py-2 text-xs font-extrabold text-black hover:bg-orange-400 transition shadow-lg"
+                      >
+                        {editingOfferId ? "✓ Update Offer Banner" : "+ Add Offer Banner"}
+                      </button>
+                      {editingOfferId && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingOfferId(null);
+                            setOfferForm({
+                              id: "",
+                              code: "",
+                              title: "",
+                              subtitle: "",
+                              discountType: "flat",
+                              discountValue: "50",
+                              minOrderValue: "299",
+                              icon: "🔥",
+                              isActive: true,
+                              oneTimePerUser: true,
+                            });
+                          }}
+                          className="rounded-full bg-zinc-800 px-4 py-2 text-xs text-zinc-400 hover:text-white"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </div>
+                  </form>
+
+                  {/* Active Offers List */}
+                  <div className="space-y-3 pt-4 border-t border-white/10">
+                    <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Active Homepage Banner Offers ({offers.length})</h3>
+                    {offers.length === 0 ? (
+                      <p className="text-xs text-zinc-500 italic">No offer banners added yet.</p>
+                    ) : (
+                      offers.map((off) => (
+                        <div key={off.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-white/10 bg-black/40 p-4">
+                          <div className="flex items-center gap-3">
+                            <span className="text-3xl">{off.icon || "🔥"}</span>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-bold text-sm text-white">{off.title}</h4>
+                                <span className="bg-orange-500/20 text-orange-400 border border-orange-500/30 text-[10px] px-2 py-0.5 rounded-full font-mono font-bold">
+                                  {off.code}
+                                </span>
+                              </div>
+                              <p className="text-xs text-zinc-400 mt-0.5">{off.subtitle}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="text-[10px] text-emerald-400 font-bold">
+                                  {off.discountType === "flat" ? `₹${off.discountValue} Flat Off` : `${off.discountValue}% Percentage Off`}
+                                </span>
+                                <span className="text-[10px] text-zinc-500">Min Order: ₹{off.minOrderValue}</span>
+                                {off.oneTimePerUser && (
+                                  <span className="text-[10px] bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded-full font-bold">
+                                    🔒 1-Time Limit
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3 self-end sm:self-center">
+                            <button
+                              onClick={() => handleToggleOffer(off.id)}
+                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                                off.isActive ? "bg-emerald-500" : "bg-zinc-700"
+                              }`}
+                              title={off.isActive ? "Active on Homepage Slider (Click to Hide)" : "Inactive (Click to Activate)"}
+                            >
+                              <span
+                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                  off.isActive ? "translate-x-6" : "translate-x-1"
+                                }`}
+                              />
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                setEditingOfferId(off.id);
+                                setOfferForm(off);
+                              }}
+                              className="px-3 py-1.5 rounded-lg border border-orange-500/40 text-orange-400 hover:bg-orange-500/10 text-xs font-semibold"
+                            >
+                              Edit
+                            </button>
+
+                            <button
+                              onClick={() => handleDeleteOffer(off.id)}
+                              className="px-3 py-1.5 rounded-lg border border-red-500/40 text-red-400 hover:bg-red-500/10 text-xs font-semibold"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Categories Sub-Tab */}
+            {settingsSubTab === "categories" && (isSuperAdmin || permissions.canEditMenu) && (
+          <div className="space-y-8 max-w-4xl mx-auto">
+            <div className="rounded-[1.75rem] border border-white/10 bg-[#16120E] p-6 lg:p-8 space-y-6 shadow-2xl">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <span>📂</span> Manage Food Categories
+              </h2>
+              <p className="text-xs text-zinc-400">
+                Add, rename, or delete categories. Newly added categories will automatically appear on your customer food menu and filtering bar!
+              </p>
+
+              {/* Add New Category Form */}
+              <form onSubmit={handleAddCategory} className="flex gap-3">
+                <input
+                  type="text"
+                  value={newCatInput}
+                  onChange={(e) => setNewCatInput(e.target.value)}
+                  placeholder="Enter new category name (e.g. Momos, Desserts, Ice Creams)..."
+                  className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-white text-sm outline-none focus:border-orange-500"
+                  required
+                />
+                <button
+                  type="submit"
+                  className="rounded-xl bg-[#FF6B00] px-6 py-2.5 text-xs font-extrabold text-black hover:bg-orange-400 transition shrink-0"
+                >
+                  + Add Category
+                </button>
+              </form>
+
+              {/* Category List */}
+              <div className="space-y-3 pt-4 border-t border-white/10">
+                <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Existing Categories ({categories.length})</h3>
+                {categories.map((cat) => (
+                  <div key={cat} className="flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-black/40 p-4">
+                    {editingCatName === cat ? (
+                      <div className="flex gap-2 w-full">
+                        <input
+                          type="text"
+                          value={editCatInput}
+                          onChange={(e) => setEditCatInput(e.target.value)}
+                          className="w-full rounded-lg border border-white/20 bg-black px-3 py-1.5 text-xs text-white outline-none"
+                        />
+                        <button
+                          onClick={() => handleEditCategory(cat)}
+                          className="rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-bold text-black hover:bg-emerald-400"
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={() => setEditingCatName(null)}
+                          className="rounded-lg bg-zinc-800 px-3 py-1.5 text-xs font-bold text-zinc-300 hover:bg-zinc-700"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <span className="font-semibold text-white text-sm">📁 {cat}</span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => { setEditingCatName(cat); setEditCatInput(cat); }}
+                            className="px-3 py-1.5 rounded-lg border border-orange-500/40 text-orange-400 hover:bg-orange-500/10 text-xs font-semibold"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteCategory(cat)}
+                            className="px-3 py-1.5 rounded-lg border border-red-500/40 text-red-400 hover:bg-red-500/10 text-xs font-semibold"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Roles, Designations & Access Restrictions Manager */}
+            <div className="rounded-[1.75rem] border border-white/10 bg-[#16120E] p-6 lg:p-8 space-y-6 shadow-2xl">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <span>🛡️</span> Roles, Designations & Access Restrictions
+              </h2>
+              <p className="text-xs text-zinc-400">
+                Add new staff roles (e.g. Kitchen Chef, Rider, Manager) and define specific feature restrictions and permissions for each role.
+              </p>
+
+              {/* Add New Role Form */}
+              <form onSubmit={handleAddRole} className="space-y-4 rounded-2xl border border-white/10 bg-black/40 p-5">
+                <h3 className="text-xs font-bold text-orange-400 uppercase tracking-wider">➕ Create New Role / Designation</h3>
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1">Role Title / Designation</label>
+                  <input
+                    type="text"
+                    value={roleForm.name}
+                    onChange={(e) => setRoleForm({ ...roleForm, name: e.target.value })}
+                    placeholder="e.g. 👨‍🍳 Kitchen Chef, 🛵 Delivery Rider, 🧹 Store Helper..."
+                    className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-white text-xs outline-none focus:border-orange-500"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2 pt-2 border-t border-white/10">
+                  <label className="block text-xs font-bold text-zinc-300">Set Access Permissions & Restrictions:</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <label className="flex items-center gap-2 cursor-pointer text-zinc-300">
+                      <input
+                        type="checkbox"
+                        checked={roleForm.canEditMenu}
+                        onChange={(e) => setRoleForm({ ...roleForm, canEditMenu: e.target.checked })}
+                        className="rounded accent-orange-500"
+                      />
+                      <span>🍔 Can Edit Menu & Prices</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 cursor-pointer text-zinc-300">
+                      <input
+                        type="checkbox"
+                        checked={roleForm.canManageOrders}
+                        onChange={(e) => setRoleForm({ ...roleForm, canManageOrders: e.target.checked })}
+                        className="rounded accent-orange-500"
+                      />
+                      <span>📦 Can View & Update Orders</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 cursor-pointer text-zinc-300">
+                      <input
+                        type="checkbox"
+                        checked={roleForm.canManageRoles}
+                        onChange={(e) => setRoleForm({ ...roleForm, canManageRoles: e.target.checked })}
+                        className="rounded accent-orange-500"
+                      />
+                      <span>⚙️ Can Manage Staff & Roles</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 cursor-pointer text-zinc-300">
+                      <input
+                        type="checkbox"
+                        checked={roleForm.canViewAnalytics}
+                        onChange={(e) => setRoleForm({ ...roleForm, canViewAnalytics: e.target.checked })}
+                        className="rounded accent-orange-500"
+                      />
+                      <span>💰 Can View Revenue & Sales Analytics</span>
+                    </label>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="rounded-full bg-[#FF6B00] px-6 py-2 text-xs font-extrabold text-black hover:bg-orange-400 transition"
+                >
+                  + Save New Role & Permissions
+                </button>
+              </form>
+
+              {/* Roles List */}
+              <div className="space-y-3 pt-3">
+                <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Active Staff Roles ({roles.length})</h3>
+                {roles.map((r) => (
+                  <div key={r.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/40 p-4">
+                    <div>
+                      <h4 className="font-bold text-sm text-white">{r.name}</h4>
+                      <div className="flex flex-wrap gap-1.5 mt-1.5">
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${r.canEditMenu ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-zinc-800 text-zinc-500 border-zinc-700'}`}>
+                          {r.canEditMenu ? '✓ Edit Menu' : '✕ Edit Menu'}
+                        </span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${r.canManageOrders ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' : 'bg-zinc-800 text-zinc-500 border-zinc-700'}`}>
+                          {r.canManageOrders ? '✓ Update Orders' : '✕ Update Orders'}
+                        </span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${r.canManageRoles ? 'bg-purple-500/20 text-purple-300 border-purple-500/30' : 'bg-zinc-800 text-zinc-500 border-zinc-700'}`}>
+                          {r.canManageRoles ? '✓ Manage Staff' : '✕ Manage Staff'}
+                        </span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${r.canViewAnalytics ? 'bg-orange-500/20 text-orange-300 border-orange-500/30' : 'bg-zinc-800 text-zinc-500 border-zinc-700'}`}>
+                          {r.canViewAnalytics ? '✓ View Sales' : '✕ View Sales'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => handleDeleteRole(r.id)}
+                      className="px-3 py-1.5 rounded-lg border border-red-500/40 text-red-400 hover:bg-red-500/10 text-xs font-semibold shrink-0 self-start sm:self-center"
+                    >
+                      Delete Role
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Sound Alarm Settings Sub-Tab */}
+        {settingsSubTab === "sound" && (isSuperAdmin || permissions.canManageOrders) && (
+          <div className="space-y-8 max-w-4xl mx-auto">
+            <div className="rounded-[1.75rem] border border-white/10 bg-[#16120E] p-6 lg:p-8 space-y-6 shadow-2xl">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <span>🔔</span> Sound & Notification Settings
+              </h2>
+              <p className="text-xs text-zinc-400">
+                Choose the alarm chime sound that plays when new orders arrive, or upload a custom audio ringtone directly from your mobile/laptop!
+              </p>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 mb-2">Select Preset Sound Alarm</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {[
+                      { id: "siren", title: "🚨 Loud Siren Sweep", desc: "High pitch dual sweep alarm" },
+                      { id: "bell", title: "🔔 Classic Bell Chime", desc: "Clean C6 bell tone" },
+                      { id: "beep", title: "🔊 Standard Beep", desc: "880Hz alert chime" },
+                    ].map((st) => (
+                      <button
+                        key={st.id}
+                        type="button"
+                        onClick={() => setSoundType(st.id as any)}
+                        className={`p-4 rounded-xl border text-left transition ${
+                          soundType === st.id ? "border-orange-500 bg-orange-500/10 text-white" : "border-white/10 bg-black/40 text-zinc-400"
+                        }`}
+                      >
+                        <h4 className="font-bold text-sm text-white">{st.title}</h4>
+                        <p className="text-[11px] text-zinc-400 mt-1">{st.desc}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Upload Custom Audio File */}
+                <div className="pt-4 border-t border-white/10">
+                  <label className="block text-xs font-semibold text-zinc-400 mb-2">Upload Custom Audio File (.mp3, .wav)</label>
+                  <input
+                    type="file"
+                    accept="audio/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const url = URL.createObjectURL(file);
+                        setCustomAudioUrl(url);
+                        setSoundType("custom");
+                      }
+                    }}
+                    className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-xs text-zinc-300 outline-none file:mr-3 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-[#FF6B00] file:text-black hover:file:bg-orange-400"
+                  />
+                  {customAudioUrl && (
+                    <p className="text-xs text-emerald-400 font-bold mt-2">✓ Custom Audio loaded! Sound mode set to Custom Audio.</p>
+                  )}
+                </div>
+
+                {/* Test Sound Button */}
+                <div className="pt-4 border-t border-white/10">
+                  <button
+                    type="button"
+                    onClick={playAlertSound}
+                    className="rounded-full bg-[#FF6B00] px-6 py-3 text-xs font-extrabold text-black hover:bg-orange-400 transition shadow-lg flex items-center gap-2"
+                  >
+                    <span>🔊</span> Test Alarm Sound Preview
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Paytm Business Gateway Sub-Tab */}
+        {settingsSubTab === "paytm" && (isSuperAdmin || permissions.canManageRoles) && (
+          <div className="space-y-8 max-w-4xl mx-auto">
+            <div className="rounded-[1.75rem] border border-white/10 bg-[#16120E] p-6 lg:p-8 space-y-6 shadow-2xl">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <span>💳</span> Paytm Business Account Credentials
+              </h2>
+              <p className="text-xs text-zinc-400">
+                Configure your official Paytm Merchant credentials here. You can fill or update your Paytm MID and Secret Key anytime!
+              </p>
+
+              {paytmSaveMsg && (
+                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/20 p-3 text-xs font-bold text-emerald-300">
+                  {paytmSaveMsg}
+                </div>
+              )}
+
+              <form onSubmit={handleSavePaytmConfig} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 mb-1">Paytm Merchant ID (MID)</label>
+                  <input
+                    type="text"
+                    value={paytmConfig.merchantId}
+                    onChange={(e) => setPaytmConfig({ ...paytmConfig, merchantId: e.target.value })}
+                    placeholder="Enter your Paytm Merchant ID (e.g. NA_KIRRAAK_MID_123)"
+                    className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-xs text-white outline-none focus:border-orange-500 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 mb-1">Paytm Merchant Key (Secret Key)</label>
+                  <input
+                    type="password"
+                    value={paytmConfig.merchantKey}
+                    onChange={(e) => setPaytmConfig({ ...paytmConfig, merchantKey: e.target.value })}
+                    placeholder="Enter your Paytm Secret Merchant Key"
+                    className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-xs text-white outline-none focus:border-orange-500 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 mb-1">Paytm Website Mode</label>
+                  <select
+                    value={paytmConfig.website}
+                    onChange={(e) => setPaytmConfig({ ...paytmConfig, website: e.target.value })}
+                    className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-xs text-white outline-none focus:border-orange-500"
+                  >
+                    <option value="DEFAULT">DEFAULT (Production Live)</option>
+                    <option value="WEBSTAGING">WEBSTAGING (Sandbox Testing)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 mb-1">Paytm Business Store UPI ID / QR Link</label>
+                  <input
+                    type="text"
+                    value={paytmConfig.upiId}
+                    onChange={(e) => setPaytmConfig({ ...paytmConfig, upiId: e.target.value })}
+                    placeholder="9966533466@paytm or nakirraakadda@paytm"
+                    className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-xs text-white outline-none focus:border-orange-500 font-mono"
+                  />
+                </div>
+
+                {/* Individual Payment Gateway Toggles */}
+                <div className="space-y-3 pt-4 border-t border-white/10">
+                  <h3 className="text-xs font-bold text-orange-400 uppercase tracking-wider">💳 Customer Payment Gateways Control</h3>
+                  
+                  {/* Enable UPI */}
+                  <div className="flex items-center justify-between p-3.5 rounded-xl border border-white/10 bg-black/40">
+                    <div>
+                      <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                        <span>📱</span> UPI / QR Code Payments
+                      </h4>
+                      <p className="text-[10px] text-zinc-400 mt-0.5">Google Pay, PhonePe, Paytm, BHIM QR</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPaytmConfig({ ...paytmConfig, enableUpi: !paytmConfig.enableUpi })}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        paytmConfig.enableUpi ? "bg-emerald-500" : "bg-zinc-700"
+                      }`}
+                    >
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${paytmConfig.enableUpi ? "translate-x-6" : "translate-x-1"}`} />
+                    </button>
+                  </div>
+
+                  {/* Enable Bank Transfer */}
+                  <div className="space-y-2 p-3.5 rounded-xl border border-white/10 bg-black/40">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                          <span>🏦</span> Bank Transfer / IMPS / NEFT
+                        </h4>
+                        <p className="text-[10px] text-zinc-400 mt-0.5">Direct Bank Account Payment</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setPaytmConfig({ ...paytmConfig, enableBank: !paytmConfig.enableBank })}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                          paytmConfig.enableBank ? "bg-emerald-500" : "bg-zinc-700"
+                        }`}
+                      >
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${paytmConfig.enableBank ? "translate-x-6" : "translate-x-1"}`} />
+                      </button>
+                    </div>
+                    {paytmConfig.enableBank && (
+                      <textarea
+                        value={paytmConfig.bankDetails || ""}
+                        onChange={(e) => setPaytmConfig({ ...paytmConfig, bankDetails: e.target.value })}
+                        placeholder="Bank Name, Account Number, IFSC Code, Account Holder Name..."
+                        className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-xs text-white outline-none focus:border-orange-500 font-mono min-h-[60px]"
+                      />
+                    )}
+                  </div>
+
+                  {/* Enable Cash on Delivery */}
+                  <div className="flex items-center justify-between p-3.5 rounded-xl border border-white/10 bg-black/40">
+                    <div>
+                      <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                        <span>💵</span> Cash on Delivery (COD)
+                      </h4>
+                      <p className="text-[10px] text-zinc-400 mt-0.5">Pay cash upon delivery arrival</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPaytmConfig({ ...paytmConfig, enableCod: !paytmConfig.enableCod })}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        paytmConfig.enableCod ? "bg-emerald-500" : "bg-zinc-700"
+                      }`}
+                    >
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${paytmConfig.enableCod ? "translate-x-6" : "translate-x-1"}`} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                  <label className="text-xs font-semibold text-zinc-300">Enable Paytm Business Gateway for Customers</label>
+                  <button
+                    type="button"
+                    onClick={() => setPaytmConfig({ ...paytmConfig, isActive: !paytmConfig.isActive })}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      paytmConfig.isActive ? "bg-emerald-500" : "bg-zinc-700"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        paytmConfig.isActive ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full rounded-full bg-[#FF6B00] py-3 text-xs font-extrabold text-black hover:bg-orange-400 transition shadow-lg shadow-orange-500/20"
+                >
+                  Save Paytm Business Credentials
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Staff & Employee Management Sub-Tab */}
+        {settingsSubTab === "employees" && (isSuperAdmin || permissions.canManageRoles) && (
+          <div className="space-y-8 max-w-4xl mx-auto">
+            <div className="rounded-[1.75rem] border border-white/10 bg-[#16120E] p-6 lg:p-8 space-y-6 shadow-2xl">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <span>👥</span> Staff & Employee Management
+              </h2>
+              <p className="text-xs text-zinc-400">
+                Create employee accounts (Chefs, Delivery Riders, Managers) and assign customer orders to them!
+              </p>
+
+              {/* Add New Employee Form */}
+              <form onSubmit={handleCreateEmployee} className="space-y-4 rounded-2xl border border-white/10 bg-black/40 p-5">
+                <h3 className="text-xs font-bold text-orange-400 uppercase tracking-wider">➕ Create New Employee Account</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-zinc-400 mb-1">Employee Name</label>
+                    <input
+                      type="text"
+                      value={empForm.name}
+                      onChange={(e) => setEmpForm({ ...empForm, name: e.target.value })}
+                      placeholder="e.g. Ramesh (Chef) / Suresh (Rider)"
+                      className="w-full rounded-xl border border-white/10 bg-black/60 px-3.5 py-2 text-xs text-white outline-none focus:border-orange-500"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-zinc-400 mb-1">Role / Designation</label>
+                    <select
+                      value={empForm.role}
+                      onChange={(e) => setEmpForm({ ...empForm, role: e.target.value })}
+                      className="w-full rounded-xl border border-white/10 bg-black/60 px-3.5 py-2 text-xs text-white outline-none focus:border-orange-500 font-semibold"
+                    >
+                      {roles.map((r) => (
+                        <option key={r.id} value={r.name}>
+                          {r.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-zinc-400 mb-1">Mobile Number</label>
+                    <input
+                      type="tel"
+                      value={empForm.phone}
+                      onChange={(e) => setEmpForm({ ...empForm, phone: e.target.value })}
+                      placeholder="10-digit mobile number"
+                      className="w-full rounded-xl border border-white/10 bg-black/60 px-3.5 py-2 text-xs text-white outline-none focus:border-orange-500"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-zinc-400 mb-1">Passcode / PIN</label>
+                    <input
+                      type="text"
+                      value={empForm.passcode}
+                      onChange={(e) => setEmpForm({ ...empForm, passcode: e.target.value })}
+                      placeholder="4-digit access pin"
+                      className="w-full rounded-xl border border-white/10 bg-black/60 px-3.5 py-2 text-xs text-white outline-none focus:border-orange-500 font-mono"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="rounded-full bg-[#FF6B00] px-6 py-2.5 text-xs font-extrabold text-black hover:bg-orange-400 transition"
+                >
+                  + Add Employee Account
+                </button>
+              </form>
+
+              {/* Employee List */}
+              <div className="space-y-3 pt-4 border-t border-white/10">
+                <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Active Organization Staff ({employees.length})</h3>
+                {employees.length === 0 ? (
+                  <p className="text-xs text-zinc-500 italic">No employees added yet.</p>
+                ) : (
+                  employees.map((emp) => (
+                    <div key={emp.id} className="flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-black/40 p-4">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-bold text-white">{emp.name}</h4>
+                          <span className="text-[10px] font-bold bg-orange-500/20 text-orange-400 border border-orange-500/30 px-2 py-0.5 rounded-full">
+                            {emp.role}
+                          </span>
+                        </div>
+                        <p className="text-xs text-zinc-400 mt-0.5">📞 {emp.phone} · PIN: <span className="font-mono">{emp.passcode}</span></p>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteEmployee(emp.id)}
+                        className="px-3 py-1.5 rounded-lg border border-red-500/40 text-red-400 hover:bg-red-500/10 text-xs font-semibold"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+
+
+        {/* Delivery Settings Sub-Tab */}
+        {settingsSubTab === "delivery" && (isSuperAdmin || permissions.canManageRoles) && (
+          <div className="max-w-3xl mx-auto rounded-[2rem] border border-orange-500/20 bg-zinc-950/90 p-8 space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold text-white mb-2">Delivery & Radius Settings</h2>
+              <p className="text-sm text-zinc-400">
+                Configure your kitchen center coordinates, free delivery distance, maximum delivery radius, and distance charges.
+              </p>
+            </div>
+
+            {deliverySaveMsg && (
+              <div className={`p-4 rounded-xl text-sm font-semibold ${deliverySaveMsg.startsWith("Error") ? "bg-red-500/10 text-red-400 border border-red-500/20" : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"}`}>
+                {deliverySaveMsg}
+              </div>
+            )}
+
+            <form onSubmit={handleSaveDeliveryConfig} className="space-y-6">
+              {/* Center Location */}
+              <div className="space-y-4 rounded-2xl border border-white/10 bg-black/40 p-4">
+                <h3 className="font-semibold text-orange-400">Store / Kitchen Center Location</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-zinc-400 mb-1">Latitude</label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={deliveryConfig.storeLocation.lat}
+                      onChange={(e) =>
+                        setDeliveryConfig({
+                          ...deliveryConfig,
+                          storeLocation: { ...deliveryConfig.storeLocation, lat: parseFloat(e.target.value) || 0 },
+                        })
+                      }
+                      className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-white text-sm"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-zinc-400 mb-1">Longitude</label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={deliveryConfig.storeLocation.lng}
+                      onChange={(e) =>
+                        setDeliveryConfig({
+                          ...deliveryConfig,
+                          storeLocation: { ...deliveryConfig.storeLocation, lng: parseFloat(e.target.value) || 0 },
+                        })
+                      }
+                      className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-white text-sm"
+                      required
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1">Address Label</label>
+                  <input
+                    type="text"
+                    value={deliveryConfig.storeLocation.address}
+                    onChange={(e) =>
+                      setDeliveryConfig({
+                        ...deliveryConfig,
+                        storeLocation: { ...deliveryConfig.storeLocation, address: e.target.value },
+                      })
+                    }
+                    className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-white text-sm"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Radius Tiers */}
+              <div className="space-y-4 rounded-2xl border border-white/10 bg-black/40 p-4">
+                <h3 className="font-semibold text-orange-400">Delivery Limits & Fees</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-zinc-400 mb-1">Free Delivery Radius (km)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={deliveryConfig.freeRadiusKm}
+                      onChange={(e) =>
+                        setDeliveryConfig({ ...deliveryConfig, freeRadiusKm: parseFloat(e.target.value) || 0 })
+                      }
+                      className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-white text-sm"
+                      required
+                    />
+                    <p className="text-[10px] text-zinc-500 mt-1">Orders within this radius get FREE delivery.</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-zinc-400 mb-1">Maximum Delivery Radius (km)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={deliveryConfig.chargeableRadiusEndKm}
+                      onChange={(e) =>
+                        setDeliveryConfig({ ...deliveryConfig, chargeableRadiusEndKm: parseFloat(e.target.value) || 0 })
+                      }
+                      className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-white text-sm"
+                      required
+                    />
+                    <p className="text-[10px] text-zinc-500 mt-1">Addresses beyond this distance are blocked.</p>
+                  </div>
+                </div>
+
+                {/* Distance fee tiers */}
+                <div className="pt-2">
+                  <label className="block text-xs font-semibold text-zinc-300 mb-2">Chargeable Distance Tiers (JSON format)</label>
+                  <textarea
+                    rows={4}
+                    value={JSON.stringify(deliveryConfig.deliveryFees, null, 2)}
+                    onChange={(e) => {
+                      try {
+                        const parsed = JSON.parse(e.target.value);
+                        setDeliveryConfig({ ...deliveryConfig, deliveryFees: parsed });
+                      } catch {
+                        // user typing invalid JSON temporarily
+                      }
+                    }}
+                    className="w-full font-mono text-xs rounded-xl border border-white/10 bg-black/80 px-3 py-2 text-orange-300"
+                  />
+                  <p className="text-[11px] text-zinc-500 mt-1">
+                    Example: {`{ "1-1.5": 40, "1.5-2": 50, "2-3": 60 }`} (range in km to fee in ₹)
+                  </p>
+                </div>
+              </div>
+
+              {/* Taxes & Charges */}
+              <div className="space-y-4 rounded-2xl border border-white/10 bg-black/40 p-4">
+                <h3 className="font-semibold text-orange-400">GST & Packaging Charges</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs text-zinc-400 mb-1">GST Rate (%)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={deliveryConfig.gstRate}
+                      onChange={(e) =>
+                        setDeliveryConfig({ ...deliveryConfig, gstRate: parseFloat(e.target.value) || 0 })
+                      }
+                      className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-white text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-zinc-400 mb-1">Packaging Fee (₹)</label>
+                    <input
+                      type="number"
+                      value={deliveryConfig.packagingFee}
+                      onChange={(e) =>
+                        setDeliveryConfig({ ...deliveryConfig, packagingFee: parseFloat(e.target.value) || 0 })
+                      }
+                      className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-white text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-zinc-400 mb-1">Min Order Value (₹)</label>
+                    <input
+                      type="number"
+                      value={deliveryConfig.minOrderValue}
+                      onChange={(e) =>
+                        setDeliveryConfig({ ...deliveryConfig, minOrderValue: parseFloat(e.target.value) || 0 })
+                      }
+                      className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-white text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full rounded-full bg-orange-500 py-3 font-semibold text-black hover:bg-orange-400 disabled:opacity-50 transition"
+              >
+                {loading ? "Saving..." : "Save Delivery Settings"}
+              </button>
+            </form>
+          </div>
+        )}
           </div>
         )}
       </div>

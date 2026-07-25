@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { auth } from "@/lib/firebase";
+import Link from "next/link";
 
 type MenuItem = {
   name: string;
   description: string;
   price: string;
+  image?: string | null;
+  isVeg?: boolean;
+  isBestseller?: boolean;
 };
 
 type CartItem = {
@@ -25,223 +28,6 @@ type CustomerReview = {
   createdAt: string;
 };
 
-const vegPizzas: MenuItem[] = [
-  {
-    name: "Veg Cheese Pizza (8 Inches)",
-    description: "Fresh vegetables with cheese",
-    price: "₹139",
-  },
-  {
-    name: "Onion Capsicum Pizza (8 Inches)",
-    description: "Onion, capsicum & mozzarella",
-    price: "₹139",
-  },
-  {
-    name: "Tomato Cheese Pizza (8 Inches)",
-    description: "Fresh tomato & cheese",
-    price: "₹139",
-  },
-  {
-    name: "Veg Cheese Spicy Pizza (8 Inches)",
-    description: "Spicy veg cheese pizza",
-    price: "₹149",
-  },
-  {
-    name: "Mixed Veg Cheese Pizza (8 Inches)",
-    description: "Loaded mixed vegetables",
-    price: "₹159",
-  },
-  {
-    name: "Paneer Tikka Pizza (8 Inches)",
-    description: "Paneer tikka with cheese",
-    price: "₹169",
-  },
-  {
-    name: "Sweet Corn Pizza (8 Inches)",
-    description: "Sweet corn & mozzarella",
-    price: "₹169",
-  },
-  {
-    name: "Special Double Crust Pizza (8 Inches)",
-    description: "Double crust special",
-    price: "₹169",
-  },
-  {
-    name: "Paneer Tikka Special Double Crust Pizza (8 Inches)",
-    description: "Paneer tikka with double crust",
-    price: "₹189",
-  },
-];
-
-const nonVegPizzas: MenuItem[] = [
-  {
-    name: "Chicken Cheese Pizza (8 Inches)",
-    description: "Chicken with rich cheesy flavor",
-    price: "₹179",
-  },
-  {
-    name: "Chicken Cheese Spicy Pizza (8 Inches)",
-    description: "Spicy chicken pizza with cheese",
-    price: "₹189",
-  },
-  {
-    name: "Chicken Tikka Cheese Pizza (8 Inches)",
-    description: "Chicken tikka with cheese",
-    price: "₹199",
-  },
-  {
-    name: "Chicken Paneer Tikka Pizza (8 Inches)",
-    description: "Chicken and paneer tikka combo",
-    price: "₹209",
-  },
-  {
-    name: "Chicken Special Double Crust Pizza (8 Inches)",
-    description: "Double crust chicken special",
-    price: "₹219",
-  },
-  {
-    name: "Chicken Tikka Special Double Crust Pizza (8 Inches)",
-    description: "Chicken tikka with double crust",
-    price: "₹229",
-  },
-];
-
-const burgers: MenuItem[] = [
-  {
-    name: "Veg Burger",
-    description: "Classic veg burger",
-    price: "₹79",
-  },
-  {
-    name: "Veg Cheese Burger",
-    description: "Veg burger with cheese",
-    price: "₹89",
-  },
-  {
-    name: "Paneer Burger",
-    description: "Paneer patty burger",
-    price: "₹99",
-  },
-  {
-    name: "Paneer Cheese Burger",
-    description: "Paneer burger with extra cheese",
-    price: "₹109",
-  },
-  {
-    name: "Chicken Burger",
-    description: "Classic chicken burger",
-    price: "₹89",
-  },
-  {
-    name: "Chicken Cheese Burger",
-    description: "Chicken burger with cheese",
-    price: "₹99",
-  },
-  {
-    name: "Chicken Tikka Burger",
-    description: "Chicken tikka flavored burger",
-    price: "₹109",
-  },
-  {
-    name: "Chicken Tikka Cheese Burger",
-    description: "Chicken tikka burger with cheese",
-    price: "₹119",
-  },
-];
-
-const sandwiches: MenuItem[] = [
-  {
-    name: "Veg Grill Sandwich",
-    description: "Veg grill sandwich",
-    price: "₹79",
-  },
-  {
-    name: "Veg Cheese Sandwich",
-    description: "Veg sandwich with cheese",
-    price: "₹89",
-  },
-  {
-    name: "Paneer Grill Sandwich",
-    description: "Paneer grill sandwich",
-    price: "₹99",
-  },
-  {
-    name: "Paneer Cheese Grill Sandwich",
-    description: "Paneer sandwich with cheese",
-    price: "₹109",
-  },
-  {
-    name: "Sweet Corn Sandwich",
-    description: "Sweet corn sandwich",
-    price: "₹119",
-  },
-  {
-    name: "Sweet Corn Cheese Sandwich",
-    description: "Sweet corn sandwich with cheese",
-    price: "₹129",
-  },
-  {
-    name: "Chicken Grill Sandwich",
-    description: "Chicken grill sandwich",
-    price: "₹89",
-  },
-  {
-    name: "Chicken Cheese Grill Sandwich",
-    description: "Chicken grill sandwich with cheese",
-    price: "₹99",
-  },
-  {
-    name: "Chicken Tikka Sandwich",
-    description: "Chicken tikka sandwich",
-    price: "₹109",
-  },
-  {
-    name: "Chicken Tikka Cheese Sandwich",
-    description: "Chicken tikka sandwich with cheese",
-    price: "₹119",
-  },
-];
-
-const hotBeverages: MenuItem[] = [
-  { name: "Tea", description: "Classic hot tea", price: "₹20" },
-  { name: "Milk", description: "Warm milk", price: "₹25" },
-  { name: "Coffee", description: "Fresh coffee", price: "₹25" },
-  { name: "Black Coffee", description: "Strong black coffee", price: "₹25" },
-  { name: "Boost", description: "Boost drink", price: "₹30" },
-  { name: "Ginger Tea", description: "Ginger flavored tea", price: "₹30" },
-  { name: "Masala Chai", description: "Spiced chai", price: "₹30" },
-  { name: "Badam Tea", description: "Badam flavored tea", price: "₹30" },
-  { name: "Bullet Coffee", description: "Rich bullet coffee", price: "₹55" },
-  { name: "Hazelnut Coffee", description: "Hazelnut coffee", price: "₹60" },
-  { name: "Hot Chocolate", description: "Creamy hot chocolate", price: "₹70" },
-];
-
-const coldBeverages: MenuItem[] = [
-  { name: "Lime Mojito", description: "Refreshing lime mojito", price: "₹65" },
-  { name: "Cold Coffee", description: "Chilled cold coffee", price: "₹70" },
-  { name: "Blue Mint Mojito", description: "Cool blue mint mojito", price: "₹75" },
-  { name: "Chilli Guava", description: "Spicy guava drink", price: "₹75" },
-  { name: "Rajahmundry Rose Milk", description: "Rose milk", price: "₹80" },
-  { name: "Chocolate Milkshake", description: "Rich chocolate milkshake", price: "₹100" },
-  { name: "Badam Milkshake", description: "Badam milkshake", price: "₹100" },
-  { name: "Kharjoor Milkshake", description: "Kharjoor milkshake", price: "₹120" },
-];
-
-const snacksAndFastFood: MenuItem[] = [
-  { name: "Cookies (3 pcs)", description: "Fresh cookies", price: "₹20" },
-  { name: "Plain Maggi", description: "Classic plain maggi", price: "₹40" },
-  { name: "Masala Maggi", description: "Spiced maggi", price: "₹50" },
-  { name: "Salt French Fries", description: "Classic salted fries", price: "₹50" },
-  { name: "Fried Veg Momos (5 pcs)", description: "Veg momos", price: "₹60" },
-  { name: "Peri Peri French Fries", description: "Peri peri fries", price: "₹60" },
-  { name: "Egg Maggi", description: "Egg maggi", price: "₹65" },
-  { name: "Cheese Maggi", description: "Cheesy maggi", price: "₹65" },
-  { name: "Chicken Roll (4 pcs)", description: "Chicken rolls", price: "₹70" },
-  { name: "Chicken Samosa (4 pcs)", description: "Chicken samosa", price: "₹70" },
-  { name: "Chicken Nuggets (5 pcs)", description: "Crispy chicken nuggets", price: "₹80" },
-  { name: "Chicken Fried Momos (5 pcs)", description: "Chicken fried momos", price: "₹80" },
-];
-
 const reviews = [
   {
     name: "Mahesh Tammadi (Local Guide)",
@@ -257,6 +43,8 @@ const reviews = [
   },
 ];
 
+const paymentOptions = ["UPI", "Paytm / GPay / PhonePe", "Cash on Delivery"];
+
 function MenuSection({
   title,
   subtitle,
@@ -268,37 +56,85 @@ function MenuSection({
   items: MenuItem[];
   onAddToCart: (item: MenuItem) => void;
 }) {
+  if (!items || items.length === 0) return null;
+
   return (
-    <section className="rounded-3xl border border-white/10 bg-black/70 p-4 sm : p-6 shadow-2xl shadow-orange-500/10">
-      <div className="mb-6">
-        <p className="text-sm font-semibold uppercase tracking-[0.3em] text-orange-400">
+    <section className="rounded-3xl border border-white/10 bg-black/70 p-4 sm:p-6 shadow-2xl shadow-orange-500/10 space-y-6">
+      <div>
+        <p className="text-xs font-bold uppercase tracking-[0.3em] text-orange-400">
           {subtitle}
         </p>
-        <h2 className="mt-2 text-2xl font-bold text-white">{title}</h2>
+        <h2 className="mt-1 text-2xl font-bold text-white tracking-tight">{title}</h2>
       </div>
-      <div className="grid gap-4 md:grid-cols-2">
-        {items.map((item) => (
-          <article
-            key={item.name}
-            className="rounded-2xl border border-orange-500/20 bg-gradient-to-br from-white/10 to-orange-500/10 p-4"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h3 className="text-lg font-semibold text-white">{item.name}</h3>
-                <p className="mt-2 text-sm text-zinc-300">{item.description}</p>
-              </div>
-              <span className="rounded-full bg-orange-500 px-3 py-1 text-sm font-semibold text-black">
-                {item.price}
-              </span>
-            </div>
-            <button
-              onClick={() => onAddToCart(item)}
-              className="mt-4 inline-flex rounded-full border border-orange-500 bg-orange-500 px-4 py-2 text-sm font-semibold text-black transition hover:scale-[1.02] hover:bg-orange-400"
+
+      <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-3 sm:grid sm:overflow-visible sm:gap-6 sm:grid-cols-2 lg:grid-cols-3 scrollbar-none">
+        {items.map((item) => {
+          const isVeg = item.isVeg !== undefined ? item.isVeg : !item.name.toLowerCase().includes("chicken");
+          const isBestseller = item.isBestseller;
+
+          return (
+            <article
+              key={item.name}
+              className="w-[270px] sm:w-auto shrink-0 snap-start rounded-[1.75rem] border border-white/10 bg-[#14100C] p-4 flex flex-col justify-between hover:border-orange-500/30 transition shadow-xl group"
             >
-              Add to Cart
-            </button>
-          </article>
-        ))}
+              {/* Top Image Container matching Image 2 */}
+              <div className="rounded-2xl bg-[#0D0A08] p-3 relative flex items-center justify-center min-h-[190px] overflow-hidden">
+                {/* FSSAI Badge Top-Left */}
+                {isVeg ? (
+                  <span className="absolute top-3 left-3 flex h-5 w-5 items-center justify-center rounded border border-emerald-500 bg-black/80 p-0.5 shadow z-10">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                  </span>
+                ) : (
+                  <span className="absolute top-3 left-3 flex h-5 w-5 items-center justify-center rounded border border-red-700 bg-black/80 p-0.5 shadow z-10">
+                    <span className="h-2 w-2 rounded-full bg-red-700" />
+                  </span>
+                )}
+
+                {/* Bestseller Badge Top-Right */}
+                {isBestseller && (
+                  <span className="absolute top-3 right-3 rounded-full bg-[#FF6B00] px-2.5 py-0.5 text-[11px] font-extrabold text-black shadow z-10">
+                    Bestseller
+                  </span>
+                )}
+
+                {/* Image or Emoji */}
+                {item.image && (item.image.startsWith("http") || item.image.startsWith("data:")) ? (
+                  <img
+                    src={item.image}
+                    alt={item.name}
+                    className="h-44 w-full object-cover rounded-xl group-hover:scale-105 transition transform duration-300"
+                  />
+                ) : (
+                  <span className="text-7xl drop-shadow select-none group-hover:scale-110 transition transform duration-300 py-4">
+                    {item.name.toLowerCase().includes("pizza") ? "🍕" :
+                     item.name.toLowerCase().includes("burger") ? "🍔" :
+                     item.name.toLowerCase().includes("sandwich") ? "🥪" :
+                     item.name.toLowerCase().includes("fries") || item.name.toLowerCase().includes("momos") ? "🍟" :
+                     item.name.toLowerCase().includes("coffee") || item.name.toLowerCase().includes("tea") ? "☕" : "🥤"}
+                  </span>
+                )}
+              </div>
+
+              {/* Bottom details matching Image 2 */}
+              <div className="mt-3 flex-1 flex flex-col justify-between">
+                <div>
+                  <h3 className="text-base font-bold text-white tracking-tight">{item.name}</h3>
+                  <p className="mt-1 text-xs text-zinc-400 line-clamp-2 leading-relaxed">{item.description}</p>
+                </div>
+
+                <div className="mt-4 flex items-center justify-between pt-2 border-t border-white/5">
+                  <span className="text-lg font-black text-white">{item.price}</span>
+                  <button
+                    onClick={() => onAddToCart(item)}
+                    className="rounded-full bg-[#FF6B00] px-5 py-1.5 text-sm font-extrabold text-black transition hover:bg-orange-400 hover:scale-105 shadow-md shadow-orange-500/20"
+                  >
+                    Add +
+                  </button>
+                </div>
+              </div>
+            </article>
+          );
+        })}
       </div>
     </section>
   );
@@ -312,15 +148,246 @@ export default function Home() {
   const [address, setAddress] = useState("");
   const [deliveryArea, setDeliveryArea] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("UPI");
-  const [offlineOrders, setOfflineOrders] = useState(200);
-  const [onlineOrders, setOnlineOrders] = useState(0);
-  const [celebration, setCelebration] = useState("");
-  const [offerClaimed, setOfferClaimed] = useState(false);
   const [customerNameInput, setCustomerNameInput] = useState("");
   const [customerRating, setCustomerRating] = useState(5);
   const [customerReview, setCustomerReview] = useState("");
   const [customerPhoto, setCustomerPhoto] = useState<string | null>(null);
   const [customerReviews, setCustomerReviews] = useState<CustomerReview[]>([]);
+  const [activeOfferSlide, setActiveOfferSlide] = useState(1);
+  const [dynamicProducts, setDynamicProducts] = useState<any[]>([]);
+
+  const [selectedLocation, setSelectedLocation] = useState("Uppal, Hyderabad");
+  const [locationModalOpen, setLocationModalOpen] = useState(false);
+  const [locationStatus, setLocationStatus] = useState<string | null>(null);
+  const [showEditDetails, setShowEditDetails] = useState(false);
+
+  // Customer Menu Filter states
+  const [vegFilter, setVegFilter] = useState<"all" | "veg" | "nonveg">("all");
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>("all");
+  const [availableCategories, setAvailableCategories] = useState<string[]>([]);
+
+  // User session & Organization total completed orders count
+  const [totalCompletedOrders, setTotalCompletedOrders] = useState(200);
+  const [loggedInUser, setLoggedInUser] = useState<any>(null);
+
+  // Online UPI Pre-Payment Modal states
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [upiUtrInput, setUpiUtrInput] = useState("");
+
+  // Dynamic Payment Gateway Toggles state
+  const [gatewaySettings, setGatewaySettings] = useState<any>({
+    enableUpi: true,
+    enableBank: true,
+    enableCod: true,
+    bankDetails: "",
+  });
+
+  const paymentOptions = useMemo(() => {
+    const opts: string[] = [];
+    if (gatewaySettings.enableUpi) opts.push("UPI");
+    if (gatewaySettings.enableBank) opts.push("Bank Transfer");
+    if (gatewaySettings.enableCod) opts.push("Cash on Delivery");
+    return opts.length > 0 ? opts : ["Cash on Delivery"];
+  }, [gatewaySettings]);
+
+  const detectGPSLocation = () => {
+    if ("geolocation" in navigator) {
+      setLocationStatus("Detecting your location via GPS...");
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+          try {
+            const res = await fetch("/api/delivery/validate", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ userLat: latitude, userLng: longitude }),
+            });
+            const data = await res.json();
+            if (data.allowed) {
+              const feeText = data.deliveryFee === 0 ? "FREE Delivery" : `₹${data.deliveryFee} Delivery Fee`;
+              setSelectedLocation(`GPS (${data.distanceKm.toFixed(1)}km — ${feeText})`);
+              setDeliveryArea("Uppal");
+              setLocationStatus(`Location verified: ${data.distanceKm.toFixed(1)} km from store ✓`);
+              setTimeout(() => setLocationModalOpen(false), 1200);
+            } else {
+              setLocationStatus("⚠️ Out of delivery zone (>3km from Uppal store)");
+            }
+          } catch (e) {
+            setSelectedLocation(`GPS (Lat: ${latitude.toFixed(2)}, Lng: ${longitude.toFixed(2)})`);
+            setTimeout(() => setLocationModalOpen(false), 1000);
+          }
+        },
+        () => {
+          setLocationStatus("GPS permission denied. Please pick your area below.");
+        }
+      );
+    } else {
+      setLocationStatus("GPS not supported. Please pick your area below.");
+    }
+  };
+
+  const loadDynamicProducts = async () => {
+    try {
+      const [resProd, resCat] = await Promise.all([
+        fetch("/api/products"),
+        fetch("/api/categories"),
+      ]);
+      if (resProd.ok) {
+        const data = await resProd.json();
+        setDynamicProducts(data);
+      }
+      if (resCat.ok) {
+        const cats = await resCat.json();
+        setAvailableCategories(cats);
+      }
+    } catch (e) {
+      console.error("Error loading menu data:", e);
+    }
+  };
+
+  const [promoOffers, setPromoOffers] = useState<any[]>([
+    {
+      title: "Kirrak Combo Offer — Save 15%",
+      subtitle: "Add any 2 items to unlock special Adda discount",
+      icon: "🍔",
+      code: "KIRRAAK15",
+    },
+    {
+      title: "Free delivery above ₹499",
+      subtitle: "No coupon needed — auto-applied at checkout",
+      icon: "🛵",
+      code: "FREEDEL",
+    },
+    {
+      title: "Adda Pe Swagat Hai! ₹50 Off",
+      subtitle: "Use code KIRRAAK50 on orders above ₹299",
+      icon: "🔥",
+      code: "KIRRAAK50",
+    },
+  ]);
+
+  // Device ID & Coupon Redemption state
+  const [deviceId, setDeviceId] = useState("");
+  const [couponCodeInput, setCouponCodeInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
+  const [discountAmount, setDiscountAmount] = useState(0);
+  const [couponMsg, setCouponMsg] = useState("");
+  const [couponLoading, setCouponLoading] = useState(false);
+
+  useEffect(() => {
+    let dev = typeof window !== "undefined" ? localStorage.getItem("deviceId") : null;
+    if (!dev) {
+      dev = `dev_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      if (typeof window !== "undefined") localStorage.setItem("deviceId", dev);
+    }
+    setDeviceId(dev);
+
+    // Fetch dynamic active offers for homepage slider
+    fetch("/api/offers")
+      .then((r) => r.json())
+      .then((offers) => {
+        if (Array.isArray(offers) && offers.length > 0) {
+          setPromoOffers(offers);
+        }
+      })
+      .catch(() => {});
+
+    loadDynamicProducts();
+
+    // Auto pre-fill user account info if logged in
+    try {
+      const userDataStr = typeof window !== "undefined" ? localStorage.getItem("user") : null;
+      if (userDataStr) {
+        const u = JSON.parse(userDataStr);
+        setLoggedInUser(u);
+        if (u.name) setCustomerName(u.name);
+        if (u.phone) setPhone(u.phone);
+      }
+    } catch (e) {}
+
+    // Fetch total organization completed orders count
+    fetch("/api/orders")
+      .then((r) => r.json())
+      .then((orders) => {
+        if (Array.isArray(orders)) {
+          setTotalCompletedOrders(200 + orders.length);
+        }
+      })
+      .catch(() => {});
+
+    // Fetch dynamic payment gateway settings (UPI, Bank Transfer, COD toggles)
+    fetch("/api/admin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "getPaytmConfig" }),
+    })
+      .then((r) => r.json())
+      .then((config) => {
+        if (config) setGatewaySettings(config);
+      })
+      .catch(() => {});
+
+    // Auto-advance offer slide every 4 seconds
+    const slideTimer = setInterval(() => {
+      setActiveOfferSlide((prev) => (promoOffers.length > 0 ? (prev + 1) % promoOffers.length : 0));
+    }, 4000);
+
+  }, [promoOffers.length]);
+
+  // Sync delivery area from top header location selector
+  useEffect(() => {
+    if (selectedLocation) {
+      const area = selectedLocation.split(",")[0].replace("📍", "").replace("⚡ Live GPS (", "").trim();
+      if (area && area.length < 20) {
+        setDeliveryArea(area);
+      } else {
+        setDeliveryArea("Uppal");
+      }
+    }
+  }, [selectedLocation]);
+
+  const groupedCategories = useMemo(() => {
+    const map = new Map<string, MenuItem[]>();
+    for (const p of dynamicProducts) {
+      if (p.isActive === false || p.isActive === 0) continue;
+      const isVeg = p.isVeg === true || p.isVeg === 1;
+
+      // Filter 1: Veg / Non-Veg
+      if (vegFilter === "veg" && !isVeg) continue;
+      if (vegFilter === "nonveg" && isVeg) continue;
+
+      // Filter 2: Category Filter
+      const cat = p.category || "Menu Items";
+      if (selectedCategoryFilter !== "all" && cat.toLowerCase() !== selectedCategoryFilter.toLowerCase()) continue;
+
+      const item: MenuItem = {
+        name: p.name,
+        description: p.description,
+        price: `₹${p.price}`,
+        image: p.image,
+        isVeg: isVeg,
+        isBestseller: p.isBestseller === true || p.isBestseller === 1,
+      };
+      if (!map.has(cat)) {
+        map.set(cat, []);
+      }
+      map.get(cat)!.push(item);
+    }
+    return Array.from(map.entries());
+  }, [dynamicProducts, vegFilter, selectedCategoryFilter]);
+
+  const bestsellersList = useMemo(() => {
+    return dynamicProducts
+      .filter((p) => (p.isActive !== false && p.isActive !== 0) && (p.isBestseller === true || p.isBestseller === 1))
+      .map((p) => ({
+        name: p.name,
+        description: p.description,
+        price: `₹${p.price}`,
+        image: p.image,
+        isVeg: p.isVeg === true || p.isVeg === 1,
+        isBestseller: true,
+      }));
+  }, [dynamicProducts]);
 
   const addToCart = (item: MenuItem) => {
     const price = Number(item.price.replace(/[^\d]/g, ""));
@@ -349,160 +416,132 @@ export default function Home() {
     setCartItems((prev) => prev.filter((item) => item.id !== id));
   };
 
-  const subtotal = useMemo(
-    () => cartItems.reduce((sum, item) => sum + item.price * item.qty, 0),
-    [cartItems],
-  );
-  const gst = subtotal * 0.18;
-  const deliveryCharge = subtotal > 0 ? 40 : 0;
-  const grandTotal = subtotal + gst + deliveryCharge;
-
-  const paymentOptions = [
-    "UPI",
-    "Google Pay",
-    "PhonePe",
-    "Paytm",
-    "Credit/Debit Card",
-    "Cash on Delivery",
-  ];
-
-  useEffect(() => {
-    fetch("/api/orders")
-      .then((response) => response.json())
-      .then((data) => {
-        const count = data.onlineCount ?? 0;
-        setOfflineOrders(data.offlineCount ?? 200);
-        setOnlineOrders(count);
-        if (count === 1) {
-          setCelebration("🎉 Congratulations! You are our First Online Customer. You receive a FREE meal.");
-          setOfferClaimed(true);
-        } else if (count === 100) {
-          setCelebration("🎉 Congratulations! You are our 100th Online Customer. You receive a FREE meal.");
-          setOfferClaimed(true);
-        } else {
-          setCelebration("");
-          setOfferClaimed(false);
-        }
-      });
-
+  const handleApplyCoupon = async () => {
+    if (!couponCodeInput.trim()) return;
+    setCouponLoading(true);
+    setCouponMsg("");
     try {
-      const savedReviews = window.localStorage.getItem("na-kirraak-adda-customer-reviews");
-      if (savedReviews) {
-        const parsed = JSON.parse(savedReviews) as CustomerReview[];
-        setCustomerReviews(parsed);
+      const res = await fetch("/api/offers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "validateCoupon",
+          code: couponCodeInput,
+          phone: phone,
+          deviceId: deviceId,
+          cartTotal: subtotal,
+        }),
+      });
+      const data = await res.json();
+      if (data.valid && data.offer) {
+        setAppliedCoupon(data.offer);
+        let disc = 0;
+        if (data.offer.discountType === "percent") {
+          disc = (subtotal * data.offer.discountValue) / 100;
+        } else {
+          disc = data.offer.discountValue;
+        }
+        setDiscountAmount(disc);
+        setCouponMsg(`✓ Coupon "${data.offer.code}" applied! You saved ₹${disc.toFixed(0)}`);
+      } else {
+        setAppliedCoupon(null);
+        setDiscountAmount(0);
+        setCouponMsg(data.message || "Invalid coupon code");
       }
-    } catch {
-      setCustomerReviews([]);
+    } catch (e) {
+      setCouponMsg("Error validating coupon");
+    } finally {
+      setCouponLoading(false);
     }
-  }, []);
+  };
+
+  const subtotal = cartItems.reduce((acc, item) => acc + item.price * item.qty, 0);
+  const gst = Math.max(0, subtotal - discountAmount) * 0.05;
+  const deliveryCharge = subtotal > 499 || subtotal === 0 ? 0 : 40;
+  const grandTotal = Math.max(0, subtotal - discountAmount) + gst + deliveryCharge;
+
+  const handleProceedToCheckoutSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customerName || !phone || !address || !deliveryArea) {
+      alert("Please fill in all checkout details including delivery area.");
+      return;
+    }
+
+    if (paymentMethod !== "Cash on Delivery" && !paymentModalOpen) {
+      setPaymentModalOpen(true);
+    } else {
+      placeOrder();
+    }
+  };
 
   const placeOrder = async () => {
+    try {
+      const finalPaymentStatus = paymentMethod === "Cash on Delivery"
+        ? "Pending COD"
+        : `Paid via UPI (Ref UTR: ${upiUtrInput || "Online Payment"})`;
 
-  if (!customerName || !phone || !address) {
-    alert("Please fill all customer details.");
-    return;
-  }
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerName,
+          phone,
+          address: `${address} (${deliveryArea})`,
+          items: cartItems,
+          subtotal,
+          discountAmount,
+          gst,
+          deliveryCharge,
+          grandTotal,
+          couponCode: appliedCoupon?.code || "",
+          deviceId: deviceId,
+          paymentMethod: `${paymentMethod} [${finalPaymentStatus}]`,
+        }),
+      });
 
-  if (!deliveryArea) {
-    alert("Please select your delivery area.");
-    return;
-  }
-
-  if (deliveryArea === "Other") {
-    alert("Sorry! We currently deliver only within 3 km of NA Kirraak Adda.");
-    return;
-  }
-
-  try {
-    const response = await fetch("/api/orders", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      customerName,
-      phone,
-      address,
-      paymentMethod,
-      cartItems,
-      grandTotal,
-    
-      status: "Received",
-      createdAt: Date.now(),
-    }),
-  });
-    
-
-    if (!response.ok) {
-      alert("Unable to confirm your order. Please try again.");
-      return;
-    }
-    alert("Order Placed Successfully!");
-
-    const data = await response.json();
-
-    setOfflineOrders(data.offlineCount ?? offlineOrders);
-    const nextCount = data.onlineCount ?? onlineOrders + 1;
-    setOnlineOrders(nextCount);
-
-    if (nextCount === 1)  {
-      setCelebration(
-        "🎉 Congratulations! You are our First Online Customer. You receive a FREE meal."
-      );
-      setOfferClaimed(true);
-  }   else if (nextCount === 100) {
-        setCelebration(
-          "🎉 Congratulations! You are our 100th Online Customer. You receive a FREE meal."
-        );
-        setOfferClaimed(true);
+      if (response.ok) {
+        alert("Order placed successfully! NA KIRRAAK ADDA team will confirm your order shortly. 🎉");
+        setCartItems([]);
+        setAppliedCoupon(null);
+        setDiscountAmount(0);
+        setCouponCodeInput("");
+        setCouponMsg("");
+        setCheckoutOpen(false);
+        setPaymentModalOpen(false);
+        setUpiUtrInput("");
       } else {
-        setCelebration("");
-        setOfferClaimed(false);
+        alert("Failed to place order. Please try again.");
       }
-
-      setCartItems([]);
-      setCheckoutOpen(false);
-      setCustomerName("");
-      setPhone("");
-      setAddress("");
-      setPaymentMethod("UPI");
-
-    } catch (error) {
-      console.error(error);
-      alert("Serve error. Please try again.");
+    } catch (e) {
+      alert("Error placing order.");
     }
   };
-    
+
   const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      setCustomerPhoto(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setCustomerPhoto(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
-  const handleSubmitReview = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmitReview = (event: React.FormEvent) => {
     event.preventDefault();
-
-    if (!customerNameInput.trim() || !customerReview.trim()) {
-      return;
-    }
+    if (!customerNameInput || !customerReview) return;
 
     const newReview: CustomerReview = {
-      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-      name: customerNameInput.trim(),
+      id: Date.now().toString(),
+      name: customerNameInput,
       rating: customerRating,
-      review: customerReview.trim(),
+      review: customerReview,
       photo: customerPhoto,
-      createdAt: new Date().toISOString(),
+      createdAt: new Date().toLocaleDateString(),
     };
 
-    const nextReviews = [newReview, ...customerReviews];
-    setCustomerReviews(nextReviews);
-    window.localStorage.setItem("na-kirraak-adda-customer-reviews", JSON.stringify(nextReviews));
+    setCustomerReviews([newReview, ...customerReviews]);
     setCustomerNameInput("");
     setCustomerRating(5);
     setCustomerReview("");
@@ -510,492 +549,738 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-[#050505] text-white">
-      <button
-        onClick={() => {
-          document.getElementById("menu")?.scrollIntoView({ behavior: "smooth" });
-        }}
-        className="fixed right-4 top-4 z-[9999] cursor-pointer rounded-full border border-orange-500/40 bg-black/80 p-3 shadow-lg"
-      >
-        🛒
-        {cartItems.length > 0 ? (
-          <span className="ml-2 rounded-full bg-orange-500 px-2 py-0.5 text-sm font-semibold text-black">
-            {cartItems.reduce((count, item) => count + item.qty, 0)}
-          </span>
-        ) : null}
-      </button>
-      {/* Hero Section - Centered */}
-      <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-        <div
-          className="relative min-h-[60vh] sm:min-h-[80vh] overflow-hidden rounded-[2rem] border border-orange-500/20 p-6 shadow-2xl shadow-orange-500/10 sm:p-8 lg:p-12 flex items-center justify-center"
-          style={{
-            backgroundImage: "linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url('/logo/brand-image.jpeg')",
-            backgroundPosition: "center center",
-            backgroundSize: "contain",
-            backgroundRepeat: "no-repeat",
-            backgroundColor: "#000000",
-          }}
-        >
-          <div className="absolute inset-0" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(255,165,0,0.1),_transparent_60%)]" />
-        </div>
-        <div className="mt-4 mx-auto inline-flex flex-wrap items-center justify-center gap-x-3 gap-y-1 rounded-xl border border-orange-500/20 bg-gradient-to-br from-zinc-900 to-zinc-950 px-4 py-2 shadow-lg shadow-orange-500/5">
-          <span className="text-base">🕐</span>
-          <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-orange-400">
-            Opening Hours
-          </span>
-          <span className="hidden sm:inline h-3 w-px bg-zinc-700" />
-          <span className="text-sm font-bold text-white">
-            3:00 PM – 12:00 AM
-          </span>
-          <span className="hidden sm:inline h-3 w-px bg-zinc-700" />
-          <span className="text-[10px] text-zinc-500">Everyday</span>
-          <span className="hidden sm:inline h-3 w-px bg-zinc-700" />
-          <span className="text-[10px] text-zinc-500">Dine-In · Takeaway · Delivery</span>
-        </div>
-      </section>
-
-      {/* Featured Offer Section - Replaces Cart */}
-      <section className="mx-auto max-w-7xl px-4 pb-8 sm:px-6 lg:px-8">
-        <div className="rounded-[2rem] border border-orange-500/20 bg-zinc-950/90 p-6 lg:p-8">
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.35em] text-orange-400">Special Offers</p>
-              <h2 className="mt-2 text-3xl font-bold text-white">What's on your mind?</h2>
-            </div>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-            {/* Pizza */}
-            <div className="rounded-[1.5rem] border border-orange-500/20 bg-gradient-to-br from-white/5 to-orange-500/5 p-4 flex flex-col items-center justify-center cursor-pointer hover:scale-105 transition transform"
-              onClick={() => document.getElementById("menu")?.scrollIntoView({ behavior: "smooth" })}>
-              <div className="text-5xl mb-2">🍕</div>
-              <p className="font-semibold text-white text-center">Pizza</p>
-            </div>
-
-            {/* Burger */}
-            <div className="rounded-[1.5rem] border border-orange-500/20 bg-gradient-to-br from-white/5 to-orange-500/5 p-4 flex flex-col items-center justify-center cursor-pointer hover:scale-105 transition transform"
-              onClick={() => document.getElementById("menu")?.scrollIntoView({ behavior: "smooth" })}>
-              <div className="text-5xl mb-2">🍔</div>
-              <p className="font-semibold text-white text-center">Burger</p>
-            </div>
-
-            {/* Sandwich */}
-            <div className="rounded-[1.5rem] border border-orange-500/20 bg-gradient-to-br from-white/5 to-orange-500/5 p-4 flex flex-col items-center justify-center cursor-pointer hover:scale-105 transition transform"
-              onClick={() => document.getElementById("menu")?.scrollIntoView({ behavior: "smooth" })}>
-              <div className="text-5xl mb-2">🥪</div>
-              <p className="font-semibold text-white text-center">Sandwich</p>
-            </div>
-
-            {/* Beverages */}
-            <div className="rounded-[1.5rem] border border-orange-500/20 bg-gradient-to-br from-white/5 to-orange-500/5 p-4 flex flex-col items-center justify-center cursor-pointer hover:scale-105 transition transform"
-              onClick={() => document.getElementById("menu")?.scrollIntoView({ behavior: "smooth" })}>
-              <div className="text-5xl mb-2">🥤</div>
-              <p className="font-semibold text-white text-center">Beverages</p>
-            </div>
-
-            {/* See All */}
-            <div className="rounded-[1.5rem] border border-orange-500/20 bg-gradient-to-br from-white/5 to-orange-500/5 p-4 flex flex-col items-center justify-center cursor-pointer hover:scale-105 transition transform"
-              onClick={() => document.getElementById("menu")?.scrollIntoView({ behavior: "smooth" })}>
-              <div className="text-5xl mb-2">👀</div>
-              <p className="font-semibold text-white text-center">See all</p>
-            </div>
+    <div className="min-h-screen bg-[#0A0806] text-white">
+      {/* Page 1: Full Screen Hero Image, 8 Named Badges & Extra Icon-Only Floating Badges */}
+      <section className="relative overflow-hidden bg-gradient-to-b from-orange-500/10 via-black to-[#0A0806] min-h-[calc(100vh-64px)] flex flex-col items-center justify-between py-8 px-4 text-center">
+        {/* Outer Icon-Only Floating Badges (No Text) */}
+        <div className="hidden xl:block absolute left-8 top-12 animate-float-slow select-none z-20 pointer-events-none">
+          <div className="rounded-2xl border border-orange-500/30 bg-black/80 p-3 text-3xl shadow-2xl backdrop-blur-md">
+            🍿
           </div>
         </div>
-      </section>
 
-      {/* Cart Checkout Section */}
-      <section id="cart-section" className="mx-auto max-w-7xl px-4 pb-8 sm:px-6 lg:px-8">
-        <div className="rounded-[2rem] border border-orange-500/20 bg-zinc-950/90 p-6 lg:p-8">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.35em] text-orange-400">Cart</p>
-              <h2 className="mt-2 text-3xl font-bold text-white">Your Order</h2>
-            </div>
-            <div className="rounded-full border border-orange-500/30 bg-black/40 px-4 py-2 text-sm font-medium text-orange-300">
-              {cartItems.length} item{cartItems.length === 1 ? "" : "s"}
-            </div>
+        <div className="hidden xl:block absolute left-16 bottom-20 animate-float-reverse select-none z-20 pointer-events-none">
+          <div className="rounded-2xl border border-orange-500/30 bg-black/80 p-3 text-3xl shadow-2xl backdrop-blur-md">
+            🍩
           </div>
+        </div>
 
-          {cartItems.length === 0 ? (
-            <p className="mt-6 text-zinc-300">
-              Your cart is empty. Add a few delicious items to start your order.
-            </p>
-          ) : (
-            <div className="mt-6 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-              <div className="space-y-3">
-                {cartItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/60 p-4"
-                  >
-                    <div>
-                      <p className="font-semibold text-white">{item.name}</p>
-                      <p className="text-sm text-zinc-400">₹{item.price}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => updateQty(item.id, -1)}
-                        className="rounded-full border border-orange-500/40 px-3 py-1 text-sm font-semibold text-orange-300"
-                      >
-                        -
-                      </button>
-                      <span className="min-w-6 text-center font-semibold text-white">{item.qty}</span>
-                      <button
-                        onClick={() => updateQty(item.id, 1)}
-                        className="rounded-full border border-orange-500/40 px-3 py-1 text-sm font-semibold text-orange-300"
-                      >
-                        +
-                      </button>
-                      <button
-                        onClick={() => removeFromCart(item.id)}
-                        className="ml-2 rounded-full bg-orange-500 px-3 py-1 text-sm font-semibold text-black"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </div>
-                ))}
+        <div className="hidden xl:block absolute right-8 top-12 animate-float-reverse select-none z-20 pointer-events-none">
+          <div className="rounded-2xl border border-orange-500/30 bg-black/80 p-3 text-3xl shadow-2xl backdrop-blur-md">
+            🌮
+          </div>
+        </div>
+
+        <div className="hidden xl:block absolute right-16 bottom-20 animate-float-slow select-none z-20 pointer-events-none">
+          <div className="rounded-2xl border border-orange-500/30 bg-black/80 p-3 text-3xl shadow-2xl backdrop-blur-md">
+            🌭
+          </div>
+        </div>
+
+        <div className="hidden 2xl:block absolute left-24 top-1/2 -translate-y-1/2 animate-float-fast select-none z-20 pointer-events-none">
+          <div className="rounded-2xl border border-orange-500/30 bg-black/80 p-3 text-3xl shadow-2xl backdrop-blur-md">
+            🧋
+          </div>
+        </div>
+
+        <div className="hidden 2xl:block absolute right-24 top-1/2 -translate-y-1/2 animate-float-fast select-none z-20 pointer-events-none">
+          <div className="rounded-2xl border border-orange-500/30 bg-black/80 p-3 text-3xl shadow-2xl backdrop-blur-md">
+            🍨
+          </div>
+        </div>
+
+        <div className="w-full max-w-6xl my-auto relative z-10 flex items-center justify-center">
+          {/* Centered Hero Logo Image with 4 floating badges on each side */}
+          <div className="relative inline-block mx-auto">
+            {/* Left 4 Attached Badges */}
+            <div className="hidden lg:flex flex-col gap-6 absolute -left-40 xl:-left-52 top-1/2 -translate-y-1/2 z-20 pointer-events-none">
+              <div className="animate-float-slow flex items-center gap-2.5 rounded-2xl border border-orange-500/40 bg-black/90 px-3.5 py-2 shadow-2xl backdrop-blur-md">
+                <span className="text-2xl">🍕</span>
+                <div className="text-left">
+                  <p className="text-xs font-bold text-white leading-none">Cheese Pizza</p>
+                  <p className="text-[10px] text-orange-400 font-semibold mt-0.5">Loaded 8 Inches</p>
+                </div>
               </div>
 
-              <div className="rounded-[1.5rem] border border-orange-500/20 bg-black/60 p-5">
-                <p className="text-sm font-semibold uppercase tracking-[0.3em] text-orange-400">Summary</p>
-                <div className="mt-4 space-y-3 text-sm text-zinc-300">
-                  <div className="flex items-center justify-between">
-                    <span>Subtotal</span>
-                    <span>₹{subtotal.toFixed(0)}</span>
+              <div className="animate-float-reverse flex items-center gap-2.5 rounded-2xl border border-orange-500/40 bg-black/90 px-3.5 py-2 shadow-2xl backdrop-blur-md">
+                <span className="text-2xl">🍔</span>
+                <div className="text-left">
+                  <p className="text-xs font-bold text-white leading-none">Smokey Burgers</p>
+                  <p className="text-[10px] text-orange-400 font-semibold mt-0.5">Juicy Patties</p>
+                </div>
+              </div>
+
+              <div className="animate-float-fast flex items-center gap-2.5 rounded-2xl border border-orange-500/40 bg-black/90 px-3.5 py-2 shadow-2xl backdrop-blur-md">
+                <span className="text-2xl">🍗</span>
+                <div className="text-left">
+                  <p className="text-xs font-bold text-white leading-none">Crispy Chicken</p>
+                  <p className="text-[10px] text-orange-400 font-semibold mt-0.5">Hot & Crunchy</p>
+                </div>
+              </div>
+
+              <div className="animate-float-slow flex items-center gap-2.5 rounded-2xl border border-orange-500/40 bg-black/90 px-3.5 py-2 shadow-2xl backdrop-blur-md">
+                <span className="text-2xl">☕</span>
+                <div className="text-left">
+                  <p className="text-xs font-bold text-white leading-none">Masala Chai</p>
+                  <p className="text-[10px] text-orange-400 font-semibold mt-0.5">Hyderabadi Special</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Central Brand Image */}
+            <img
+              src="/logo/brand-image.jpeg"
+              alt="NA KIRRAAK ADDA"
+              className="w-full max-w-xs sm:max-w-md md:max-w-lg h-auto object-contain rounded-3xl border-2 border-orange-500/50 shadow-2xl shadow-orange-500/30 hover:scale-[1.02] transition transform duration-300"
+            />
+
+            {/* Right 4 Attached Badges */}
+            <div className="hidden lg:flex flex-col gap-6 absolute -right-40 xl:-right-52 top-1/2 -translate-y-1/2 z-20 pointer-events-none">
+              <div className="animate-float-reverse flex items-center gap-2.5 rounded-2xl border border-orange-500/40 bg-black/90 px-3.5 py-2 shadow-2xl backdrop-blur-md">
+                <span className="text-2xl">🥪</span>
+                <div className="text-left">
+                  <p className="text-xs font-bold text-white leading-none">Grill Sandwich</p>
+                  <p className="text-[10px] text-orange-400 font-semibold mt-0.5">Paneer & Cheese</p>
+                </div>
+              </div>
+
+              <div className="animate-float-slow flex items-center gap-2.5 rounded-2xl border border-orange-500/40 bg-black/90 px-3.5 py-2 shadow-2xl backdrop-blur-md">
+                <span className="text-2xl">🥤</span>
+                <div className="text-left">
+                  <p className="text-xs font-bold text-white leading-none">Cold Beverages</p>
+                  <p className="text-[10px] text-orange-400 font-semibold mt-0.5">Chilled Mojitos</p>
+                </div>
+              </div>
+
+              <div className="animate-float-fast flex items-center gap-2.5 rounded-2xl border border-orange-500/40 bg-black/90 px-3.5 py-2 shadow-2xl backdrop-blur-md">
+                <span className="text-2xl">🥟</span>
+                <div className="text-left">
+                  <p className="text-xs font-bold text-white leading-none">Fried Momos</p>
+                  <p className="text-[10px] text-orange-400 font-semibold mt-0.5">Schezwan Dip</p>
+                </div>
+              </div>
+
+              <div className="animate-float-reverse flex items-center gap-2.5 rounded-2xl border border-orange-500/40 bg-black/90 px-3.5 py-2 shadow-2xl backdrop-blur-md">
+                <span className="text-2xl">🍟</span>
+                <div className="text-left">
+                  <p className="text-xs font-bold text-white leading-none">Peri Peri Fries</p>
+                  <p className="text-[10px] text-orange-400 font-semibold mt-0.5">Crispy & Spicy</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Opening Hours & Total Organization Orders Delivered Banner */}
+        <div className="z-20 my-4 flex flex-wrap items-center justify-center gap-3 rounded-full border border-orange-500/30 bg-black/80 px-6 py-2.5 shadow-2xl backdrop-blur-md max-w-3xl mx-auto">
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="text-base">🕙</span>
+            <span className="font-extrabold text-orange-400">OPENING HOURS</span>
+            <span className="text-zinc-500">|</span>
+            <span className="font-black text-white">3:00 PM – 12:00 AM</span>
+            <span className="text-zinc-500 hidden sm:inline">|</span>
+            <span className="text-zinc-400">Everyday</span>
+          </div>
+
+          <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-3.5 py-1 rounded-full">
+            🎉 {totalCompletedOrders}+ Orders Delivered by NA KIRRAAK ADDA
+          </span>
+
+          <Link
+            href="/user/orders"
+            className="flex items-center gap-1.5 rounded-full bg-[#FF6B00] px-4 py-1.5 text-xs font-extrabold text-black hover:bg-orange-400 transition shadow-lg shrink-0"
+          >
+            {loggedInUser ? (
+              <><span>🛵</span> Track My Orders ({loggedInUser.name.split(" ")[0]})</>
+            ) : (
+              <><span>🛵</span> Track Order Live</>
+            )}
+          </Link>
+        </div>
+
+        {/* Scroll down indicator */}
+        <a
+          href="#explore-section"
+          className="animate-bounce flex items-center gap-2 rounded-full border border-orange-500/40 bg-orange-500/10 px-5 py-2 text-xs font-extrabold text-orange-400 hover:bg-orange-500/20 transition mb-2 z-20"
+        >
+          <span>↓</span> Scroll for Kirrak Menu
+        </a>
+      </section>
+
+      {/* Page 2: Next Section on Scroll */}
+      <section id="explore-section" className="py-16 px-4 text-center bg-[#0A0806] border-t border-white/5">
+        <div className="mx-auto max-w-3xl space-y-6">
+          <div className="inline-flex items-center gap-2 rounded-full border border-orange-500/30 bg-orange-500/10 px-4 py-1 text-xs font-bold text-orange-400">
+            <span>🔥</span> Authentic Hyderabadi Fast Food Adda
+          </div>
+          <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight">
+            Craving Kirrak Food? <br />
+            <span className="text-orange-500">We Delivered Fast & Fresh.</span>
+          </h2>
+          <p className="text-sm sm:text-base text-zinc-400 max-w-xl mx-auto">
+            From loaded cheese pizzas & juicy burgers to refreshing drinks and snacks — order directly from Uppal center!
+          </p>
+
+          {/* Image 1 Promo Banner Slider */}
+          <div className="mt-8 rounded-2xl border border-orange-500/30 bg-gradient-to-r from-zinc-950 via-zinc-900 to-zinc-950 p-6 shadow-2xl relative max-w-xl mx-auto">
+            <div className="flex items-center justify-between gap-4">
+              <div className="text-left">
+                <span className="text-2xl">{promoOffers[activeOfferSlide].icon}</span>
+                <h3 className="text-lg font-bold text-white mt-1">{promoOffers[activeOfferSlide].title}</h3>
+                <p className="text-xs text-zinc-400 mt-0.5">{promoOffers[activeOfferSlide].subtitle}</p>
+              </div>
+              <span className="rounded-full bg-[#FF6B00] px-3 py-1 text-xs font-extrabold text-black shrink-0">
+                ACTIVE
+              </span>
+            </div>
+            {/* Pagination Dots matching Image 1 */}
+            <div className="flex justify-center gap-1.5 mt-4">
+              {promoOffers.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setActiveOfferSlide(idx)}
+                  className={`h-2 rounded-full transition-all duration-300 ${
+                    activeOfferSlide === idx ? "w-6 bg-[#FF6B00]" : "w-2 bg-white/20"
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Cart Drawer Float Button / Quick Cart */}
+      {cartItems.length > 0 && (
+        <div className="fixed bottom-6 right-6 z-50">
+          <button
+            onClick={() => setCheckoutOpen(true)}
+            className="flex items-center gap-3 rounded-full bg-[#FF6B00] px-6 py-3 font-extrabold text-black shadow-2xl shadow-orange-500/40 hover:bg-orange-400 transition transform hover:scale-105"
+          >
+            <span>🛒 {cartItems.reduce((a, b) => a + b.qty, 0)} Items</span>
+            <span className="border-l border-black/20 pl-3">₹{grandTotal.toFixed(0)}</span>
+          </button>
+        </div>
+      )}
+
+      {/* Customer Checkout Modal */}
+      {checkoutOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl border border-white/10 bg-[#14100C] p-6 text-white shadow-2xl">
+            <div className="flex items-center justify-between pb-4 border-b border-white/10">
+              <h3 className="text-xl font-bold text-white">Checkout</h3>
+              <button
+                onClick={() => setCheckoutOpen(false)}
+                className="text-zinc-400 hover:text-white text-lg font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Cart Summary */}
+            <div className="mt-4 space-y-3">
+              <h4 className="text-xs font-bold text-orange-400 uppercase tracking-wider">Your Items</h4>
+              {cartItems.map((item) => (
+                <div key={item.id} className="flex items-center justify-between text-sm py-1 border-b border-white/5">
+                  <div>
+                    <p className="font-bold text-white">{item.name}</p>
+                    <p className="text-xs text-zinc-400">₹{item.price} × {item.qty}</p>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span>GST</span>
-                    <span>₹{gst.toFixed(0)}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Delivery Charge</span>
-                    <span>₹{deliveryCharge.toFixed(0)}</span>
-                  </div>
-                  <div className="flex items-center justify-between border-t border-white/10 pt-3 text-base font-semibold text-white">
-                    <span>Grand Total</span>
-                    <span>₹{grandTotal.toFixed(0)}</span>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => updateQty(item.id, -1)} className="h-6 w-6 rounded bg-zinc-800 font-bold text-white text-xs hover:bg-zinc-700">-</button>
+                    <span className="text-xs font-bold text-white">{item.qty}</span>
+                    <button onClick={() => updateQty(item.id, 1)} className="h-6 w-6 rounded bg-zinc-800 font-bold text-white text-xs hover:bg-zinc-700">+</button>
                   </div>
                 </div>
+              ))}
+            </div>
+
+            {/* Coupon / Promo Code Input Box */}
+            <div className="mt-4 rounded-2xl border border-orange-500/30 bg-orange-500/10 p-3 space-y-2">
+              <label className="block text-[11px] font-bold text-orange-400 uppercase tracking-wider">
+                🎟️ Have a Coupon Code / Promo Offer?
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={couponCodeInput}
+                  onChange={(e) => setCouponCodeInput(e.target.value.toUpperCase())}
+                  placeholder="Enter Code (e.g. KIRRAAK50)"
+                  className="w-full rounded-xl border border-white/10 bg-black/80 px-3 py-2 text-xs text-white uppercase outline-none focus:border-orange-500 font-mono"
+                />
                 <button
-                  onClick={() => setCheckoutOpen(true)}
-                  className="mt-6 w-full rounded-full bg-orange-500 px-5 py-3 font-semibold text-black transition hover:bg-orange-400"
+                  type="button"
+                  onClick={handleApplyCoupon}
+                  disabled={couponLoading}
+                  className="rounded-xl bg-[#FF6B00] px-4 py-2 text-xs font-extrabold text-black hover:bg-orange-400 shrink-0 transition disabled:opacity-50"
                 >
-                  Checkout
+                  {couponLoading ? "Checking..." : "Apply"}
                 </button>
               </div>
+              {couponMsg && (
+                <p className={`text-[11px] font-semibold ${couponMsg.startsWith("✓") ? "text-emerald-400" : "text-red-400"}`}>
+                  {couponMsg}
+                </p>
+              )}
+            </div>
+
+            {/* Price breakdown */}
+            <div className="mt-4 space-y-1.5 text-xs text-zinc-300 pt-3 border-t border-white/10">
+              <div className="flex justify-between"><span>Subtotal</span><span>₹{subtotal.toFixed(0)}</span></div>
+              {discountAmount > 0 && (
+                <div className="flex justify-between text-emerald-400 font-bold">
+                  <span>Coupon Discount ({appliedCoupon?.code})</span>
+                  <span>-₹{discountAmount.toFixed(0)}</span>
+                </div>
+              )}
+              <div className="flex justify-between"><span>GST (5%)</span><span>₹{gst.toFixed(0)}</span></div>
+              <div className="flex justify-between"><span>Delivery</span><span>{deliveryCharge === 0 ? "FREE 🎉" : `₹${deliveryCharge}`}</span></div>
+              <div className="flex justify-between text-sm font-extrabold text-white pt-2 border-t border-white/10"><span>Grand Total</span><span className="text-orange-400">₹{grandTotal.toFixed(0)}</span></div>
+            </div>
+
+            {/* User details form */}
+            <form onSubmit={handleProceedToCheckoutSubmit} className="mt-5 space-y-3">
+              {/* If Name and Phone are prefilled, display summary box instead of re-asking */}
+              {customerName && phone && !showEditDetails ? (
+                <div className="rounded-2xl border border-orange-500/30 bg-orange-500/10 p-3.5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-orange-400">Order Contact Details</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowEditDetails(true)}
+                      className="text-[11px] font-bold text-zinc-400 hover:text-white underline"
+                    >
+                      ✏️ Edit Info
+                    </button>
+                  </div>
+                  <div className="text-xs text-white space-y-1">
+                    <p>👤 <strong>Name:</strong> {customerName}</p>
+                    <p>📱 <strong>Mobile:</strong> {phone}</p>
+                    <p>📍 <strong>Area:</strong> {deliveryArea || "Uppal"}</p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-xs text-zinc-400 mb-1">Your Name</label>
+                    <input
+                      type="text"
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm text-white outline-none focus:border-orange-500"
+                      placeholder="Enter full name"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-zinc-400 mb-1">Phone Number</label>
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm text-white outline-none focus:border-orange-500"
+                      placeholder="10-digit mobile number"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-zinc-400 mb-1">Delivery Area (Uppal & Surroundings)</label>
+                    <select
+                      value={deliveryArea}
+                      onChange={(e) => setDeliveryArea(e.target.value)}
+                      className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm text-white outline-none focus:border-orange-500"
+                      required
+                    >
+                      <option value="">Select your area</option>
+                      <option value="Uppal">Uppal</option>
+                      <option value="Ramanthapur">Ramanthapur</option>
+                      <option value="Nagole">Nagole</option>
+                      <option value="Habsiguda">Habsiguda</option>
+                      <option value="Boduppal">Boduppal</option>
+                      <option value="Nacharam">Nacharam</option>
+                      <option value="Tarnaka">Tarnaka</option>
+                      <option value="Chiluka Nagar">Chiluka Nagar</option>
+                    </select>
+                  </div>
+                </>
+              )}
+
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1">House Address / Landmark</label>
+                <textarea
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm text-white outline-none focus:border-orange-500 min-h-[60px]"
+                  placeholder="Flat No., House Name, Street"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1">Payment Method</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {paymentOptions.map((opt) => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => setPaymentMethod(opt)}
+                      className={`py-2 rounded-xl text-[11px] font-bold border transition ${
+                        paymentMethod === opt ? "border-orange-500 bg-orange-500/20 text-orange-400" : "border-white/10 bg-black/40 text-zinc-400"
+                      }`}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full mt-3 rounded-full bg-[#FF6B00] py-3 font-extrabold text-black hover:bg-orange-400 transition text-sm shadow-lg shadow-orange-500/20"
+              >
+                {paymentMethod === "Cash on Delivery"
+                  ? `Place Order (COD) — ₹${grandTotal.toFixed(0)}`
+                  : `Proceed to Pay & Place Order — ₹${grandTotal.toFixed(0)}`}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Online UPI Pre-Payment Modal */}
+      {paymentModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 p-4 backdrop-blur-md">
+          <div className="w-full max-w-md rounded-3xl border border-orange-500/40 bg-[#16120E] p-6 text-white shadow-2xl space-y-5">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div>
+                <p className="text-[10px] font-extrabold uppercase tracking-widest text-orange-400">Scan & Pay Before Order</p>
+                <h3 className="text-xl font-black text-white">Complete Online Payment</h3>
+              </div>
+              <button
+                onClick={() => setPaymentModalOpen(false)}
+                className="text-zinc-400 hover:text-white text-lg font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Total Amount Badge */}
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-center">
+              <span className="text-xs text-zinc-300">Amount Payable</span>
+              <p className="text-3xl font-black text-emerald-400 mt-0.5">₹{grandTotal.toFixed(0)}</p>
+              <p className="text-[11px] text-zinc-400 mt-1">Store UPI: <strong>9966533466@ybl</strong> (NA KIRRAAK ADDA)</p>
+            </div>
+
+            {/* Dynamic UPI QR Code Image */}
+            <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-white text-center shadow-2xl">
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=upi://pay?pa=9966533466@ybl%26pn=NA%20KIRRAAK%20ADDA%26am=${grandTotal.toFixed(0)}%26cu=INR`}
+                alt="UPI Payment QR Code"
+                className="w-44 h-44 object-contain rounded-lg"
+              />
+              <p className="text-[11px] font-bold text-black mt-2">Scan with GPay, PhonePe, Paytm, or BHIM</p>
+            </div>
+
+            {/* Direct Pay Buttons for Mobile */}
+            <div className="grid grid-cols-3 gap-2">
+              <a
+                href={`upi://pay?pa=9966533466@ybl&pn=NA%20KIRRAAK%20ADDA&am=${grandTotal.toFixed(0)}&cu=INR`}
+                className="p-2.5 rounded-xl border border-white/10 bg-black/60 text-center text-xs font-bold text-white hover:border-orange-500"
+              >
+                📱 GPay / PhonePe
+              </a>
+              <a
+                href={`upi://pay?pa=9966533466@ybl&pn=NA%20KIRRAAK%20ADDA&am=${grandTotal.toFixed(0)}&cu=INR`}
+                className="p-2.5 rounded-xl border border-white/10 bg-black/60 text-center text-xs font-bold text-white hover:border-orange-500"
+              >
+                📲 Paytm UPI
+              </a>
+              <a
+                href={`upi://pay?pa=9966533466@ybl&pn=NA%20KIRRAAK%20ADDA&am=${grandTotal.toFixed(0)}&cu=INR`}
+                className="p-2.5 rounded-xl border border-white/10 bg-black/60 text-center text-xs font-bold text-white hover:border-orange-500"
+              >
+                💳 BHIM UPI
+              </a>
+            </div>
+
+            {/* Enter 12-digit UTR Ref Number */}
+            <div className="space-y-1.5 pt-2 border-t border-white/10">
+              <label className="block text-xs font-semibold text-zinc-300">
+                Enter 12-digit Payment UTR / Reference No.
+              </label>
+              <input
+                type="text"
+                value={upiUtrInput}
+                onChange={(e) => setUpiUtrInput(e.target.value)}
+                placeholder="e.g. 123456789012 (from payment receipt)"
+                className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-xs text-white outline-none focus:border-orange-500 font-mono"
+              />
+              <p className="text-[10px] text-zinc-400">Entering your UTR ensures instant payment verification by kitchen staff.</p>
+            </div>
+
+            <button
+              onClick={placeOrder}
+              className="w-full rounded-full bg-[#FF6B00] py-3 text-xs font-extrabold text-black hover:bg-orange-400 transition shadow-lg shadow-orange-500/20"
+            >
+              Confirm Payment & Submit Order — ₹{grandTotal.toFixed(0)}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Main Customer Menu Section */}
+      <main id="menu" className="mx-auto max-w-7xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
+        {/* Customer Interactive Menu Filter Bar */}
+        <div className="rounded-3xl border border-white/10 bg-[#14100C] p-5 shadow-2xl space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <h3 className="text-lg font-extrabold text-white flex items-center gap-2">
+              <span>🍽️</span> Explore Adda Menu
+            </h3>
+
+            {/* Veg / Non-Veg Toggle Pills */}
+            <div className="flex items-center gap-2 rounded-full border border-white/10 bg-black/60 p-1">
+              <button
+                onClick={() => setVegFilter("all")}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold transition ${
+                  vegFilter === "all" ? "bg-[#FF6B00] text-black shadow" : "text-zinc-400 hover:text-white"
+                }`}
+              >
+                All Menu
+              </button>
+              <button
+                onClick={() => setVegFilter("veg")}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-extrabold transition ${
+                  vegFilter === "veg" ? "bg-emerald-500 text-black shadow" : "text-emerald-400 hover:bg-emerald-500/10"
+                }`}
+              >
+                <span className="h-2 w-2 rounded-full bg-emerald-500" /> Pure Veg
+              </button>
+              <button
+                onClick={() => setVegFilter("nonveg")}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-extrabold transition ${
+                  vegFilter === "nonveg" ? "bg-red-600 text-white shadow" : "text-red-400 hover:bg-red-600/10"
+                }`}
+              >
+                <span className="h-2 w-2 rounded-full bg-red-600" /> Non-Veg
+              </button>
+            </div>
+          </div>
+
+          {/* Category Filter Horizontal Scroll Pills */}
+          {availableCategories.length > 0 && (
+            <div className="flex overflow-x-auto gap-2 pt-2 pb-1 scrollbar-none">
+              <button
+                onClick={() => setSelectedCategoryFilter("all")}
+                className={`px-4 py-1.5 rounded-full text-xs font-extrabold shrink-0 border transition ${
+                  selectedCategoryFilter === "all"
+                    ? "border-orange-500 bg-orange-500/20 text-orange-300"
+                    : "border-white/10 bg-black/40 text-zinc-400 hover:border-white/20"
+                }`}
+              >
+                All Categories
+              </button>
+              {availableCategories.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategoryFilter(cat)}
+                  className={`px-4 py-1.5 rounded-full text-xs font-extrabold shrink-0 border transition ${
+                    selectedCategoryFilter.toLowerCase() === cat.toLowerCase()
+                      ? "border-orange-500 bg-orange-500/20 text-orange-300"
+                      : "border-white/10 bg-black/40 text-zinc-400 hover:border-white/20"
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
             </div>
           )}
         </div>
-      </section>
 
-      {checkoutOpen && cartItems.length > 0 ? (
-        <section className="mx-auto max-w-7xl px-4 pb-8 sm:px-6 lg:px-8">
-          <div className="rounded-[2rem] border border-orange-500/20 bg-zinc-950/90 p-6 lg:p-8">
-            <p className="text-sm font-semibold uppercase tracking-[0.35em] text-orange-400">Checkout</p>
-            <h2 className="mt-2 text-3xl font-bold text-white">Complete your order</h2>
+        {/* Top Bestsellers Section */}
+        {bestsellersList.length > 0 && selectedCategoryFilter === "all" && vegFilter === "all" && (
+          <MenuSection
+            title="Kirrak Bestsellers"
+            subtitle="Adda Favorites"
+            items={bestsellersList}
+            onAddToCart={addToCart}
+          />
+        )}
 
-            <div className="mt-6 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-              <form className="space-y-4" onSubmit={(event) => event.preventDefault()}>
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-zinc-300">Customer Name</label>
-                  <input
-                    value={customerName}
-                    onChange={(event) => setCustomerName(event.target.value)}
-                    className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-white outline-none"
-                    placeholder="Enter your name"
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-zinc-300">
-  Phone Number
-</label>
-
-<input
-  type="tel"
-  value={phone}
-  onChange={(event) => setPhone(event.target.value)}
-  className="w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-white outline-none"
-  placeholder="Enter your phone number"
-/>
-                </div>
-                  
-<div>
-  <label className="mb-2 block text-sm font-semibold text-zinc-300">
-    Delivery Area
-  </label>
-
-  <select
-    value={deliveryArea}
-    onChange={(e) => setDeliveryArea(e.target.value)}
-    className="mb-4 min-h-12 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-white outline-none"
-  >
-    <option value="">Select Delivery Area</option>
-    <option>Uppal</option>
-    <option>Ramanthapur</option>
-    <option>Nagole</option>
-    <option>Habsiguda</option>
-    <option>Boduppal</option>
-    <option>Nacharam</option>
-    <option>Tarnaka</option>
-    <option>Alkapuri X Roads</option>
-    <option>Sai Nagar</option>
-    <option>Bandlaguda</option>
-    <option>Saraswathi Colony</option>
-    <option>Venkateshwara Colony</option>
-    <option>Raghavendra Nagar Colony</option>
-    <option>Shanti Nagar</option>
-    <option>Kalyanpuri</option>
-    <option>Chiluka Nagar</option>
-    <option>Other</option>
-  </select>
-
-  <label className="mb-2 block text-sm font-semibold text-zinc-300">
-    Address
-  </label>
-
-  <textarea
-    value={address}
-    onChange={(event) => setAddress(event.target.value)}
-    className="min-h-28 w-full rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-white outline-none"
-    placeholder="Enter your delivery address"
-  />
-</div>
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-zinc-300">Payment Method</label>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {paymentOptions.map((method) => (
-                      <label
-                        key={method}
-                        className={`flex cursor-pointer items-center justify-between rounded-2xl border px-4 py-3 text-sm font-medium ${
-                          paymentMethod === method
-                            ? "border-orange-500 bg-orange-500/10 text-orange-300"
-                            : "border-white/10 bg-black/40 text-zinc-300"
-                        }`}
-                      >
-                        <span>{method}</span>
-                        <input
-                          type="radio"
-                          name="payment"
-                          value={method}
-                          checked={paymentMethod === method}
-                          onChange={() => setPaymentMethod(method)}
-                          className="accent-orange-500"
-                        />
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </form>
-
-              <div className="rounded-[1.5rem] border border-orange-500/20 bg-black/60 p-5">
-                <p className="text-sm font-semibold uppercase tracking-[0.3em] text-orange-400">Order Summary</p>
-                <div className="mt-4 space-y-3 text-sm text-zinc-300">
-                  {cartItems.map((item) => (
-                    <div key={item.id} className="flex items-center justify-between">
-                      <span>
-                        {item.name} × {item.qty}
-                      </span>
-                      <span>₹{(item.price * item.qty).toFixed(0)}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-4 border-t border-white/10 pt-4 text-sm text-zinc-300">
-                  <div className="flex items-center justify-between">
-                    <span>Subtotal</span>
-                    <span>₹{subtotal.toFixed(0)}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>GST</span>
-                    <span>₹{gst.toFixed(0)}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Delivery</span>
-                    <span>₹{deliveryCharge.toFixed(0)}</span>
-                  </div>
-                  <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-3 text-base font-semibold text-white">
-                    <span>Grand Total</span>
-                    <span>₹{grandTotal.toFixed(0)}</span>
-                  </div>
-                </div>
-                <button
-                  onClick={placeOrder}
-                  className="mt-6 w-full rounded-full bg-orange-500 px-5 py-3 font-semibold text-black transition hover:bg-orange-400"
-                >
-                  Place Order
-                </button>
-              </div>
-            </div>
+        {/* Dynamic Categories Render */}
+        {groupedCategories.length === 0 ? (
+          <div className="rounded-3xl border border-white/10 bg-black/60 p-12 text-center text-zinc-400">
+            <p className="text-4xl mb-3">🍽️</p>
+            <h3 className="text-xl font-bold text-white mb-2">Loading Kirrak Menu...</h3>
+            <p className="text-sm text-zinc-400">Please wait a moment while we fetch fresh menu items.</p>
           </div>
-        </section>
-      ) : null}
-
-      <section className="mx-auto grid max-w-7xl gap-6 px-4 pb-8 sm:px-6 lg:grid-cols-3 lg:px-8">
-        <div className="rounded-2xl border border-white/10 bg-zinc-900/90 p-5">
-          <p className="text-sm uppercase tracking-[0.3em] text-orange-400">Signature</p>
-          <p className="mt-2 text-xl font-semibold text-white">Cheese loaded pizzas</p>
-        </div>
-        <div className="rounded-2xl border border-white/10 bg-zinc-900/90 p-5">
-          <p className="text-sm uppercase tracking-[0.3em] text-orange-400">Classic</p>
-          <p className="mt-2 text-xl font-semibold text-white">Juicy burgers</p>
-        </div>
-        <div className="rounded-2xl border border-white/10 bg-zinc-900/90 p-5">
-          <p className="text-sm uppercase tracking-[0.3em] text-orange-400">Ready</p>
-          <p className="mt-2 text-xl font-semibold text-white">Order in minutes</p>
-        </div>
-      </section>
-
-      <section id="menu" className="mx-auto max-w-7xl space-y-6 px-4 pb-8 sm:px-6 lg:px-8">
-        <MenuSection title="Veg Pizza" subtitle="Plant-based favorites" items={vegPizzas} onAddToCart={addToCart} />
-        <MenuSection title="Non-Veg Pizza" subtitle="Protein-packed picks" items={nonVegPizzas} onAddToCart={addToCart} />
-        <MenuSection title="Burgers" subtitle="Hot off the grill" items={burgers} onAddToCart={addToCart} />
-        <MenuSection title="Sandwiches" subtitle="Quick bites & comfort" items={sandwiches} onAddToCart={addToCart} />
-        <MenuSection title="Hot Beverages" subtitle="Warm sips" items={hotBeverages} onAddToCart={addToCart} />
-        <MenuSection title="Cold Beverages" subtitle="Chilled favorites" items={coldBeverages} onAddToCart={addToCart} />
-        <MenuSection title="Snacks & Fast Food" subtitle="Crispy cravings" items={snacksAndFastFood} onAddToCart={addToCart} />
-      </section>
-
-      <section className="mx-auto max-w-7xl px-4 pb-8 sm:px-6 lg:px-8">
-        <div className="grid gap-6 rounded-[2rem] border border-orange-500/20 bg-zinc-950/90 p-6 lg:grid-cols-[0.95fr_1.05fr] lg:p-8">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.35em] text-orange-400">Find us</p>
-            <h2 className="mt-3 text-3xl font-bold text-white">Visit our location</h2>
-            <p className="mt-4 text-zinc-300">
-              Stop by for a fresh slice or place a quick order for pickup and delivery.
-            </p>
-            <div className="mt-6 space-y-3 text-sm text-zinc-300">
-              <p>📍 NA KIRRAAK ADDA, Venkateswara Colony, Vijayapuri Colony, Uppal, Hyderabad, Telangana 500039</p>
-              <p>📞 +91 9966533466</p>
-              <p>✉️ nakirraakadda2026@gmail.com</p>
-            </div>
-          </div>
-          <div className="overflow-hidden rounded-[1.5rem] border border-white/10">
-            <iframe
-              src="https://www.google.com/maps?q=NA%20KIRRAAK%20ADDA&output=embed"
-              className="h-[320px] w-full border-0"
-              loading="lazy"
-              title="Google Map for NA KIRRAAK ADDA"
+        ) : (
+          groupedCategories.map(([categoryName, items]) => (
+            <MenuSection
+              key={categoryName}
+              title={categoryName}
+              subtitle="Fresh & Fast"
+              items={items}
+              onAddToCart={addToCart}
             />
-          </div>
-        </div>
-      </section>
+          ))
+        )}
+      </main>
 
-      <section className="mx-auto max-w-7xl px-4 pb-8 sm:px-6 lg:px-8">
-        <div className="rounded-[2rem] border border-white/10 bg-gradient-to-br from-orange-500/15 to-white/5 p-6 lg:p-8">
-          <div className="mb-6 flex items-center justify-between gap-3">
+      {/* Bottom Section 1: Visit Our Location & Map */}
+      <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="rounded-[2rem] border border-white/10 bg-[#14100C] p-6 sm:p-8 shadow-2xl space-y-6">
+          <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr] items-center">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.35em] text-orange-400">
-                Reviews
+              <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-orange-400">Find Us</p>
+              <h2 className="mt-2 text-3xl font-black text-white">Visit our location</h2>
+              <p className="mt-3 text-sm text-zinc-400 leading-relaxed">
+                Stop by for a fresh slice or place a quick order for pickup and fast delivery across Uppal.
               </p>
-              <h2 className="mt-2 text-3xl font-bold text-white">Loved by customers</h2>
+              <div className="mt-6 space-y-3 text-xs text-zinc-300">
+                <p className="flex items-start gap-2">
+                  <span className="text-base">📍</span>
+                  <span><strong>NA KIRRAAK ADDA</strong>, Venkateswara Colony, Vijayapuri Colony, Uppal, Hyderabad, Telangana 500039</span>
+                </p>
+                <p className="flex items-center gap-2">
+                  <span className="text-base">📞</span>
+                  <span>+91 9966533466</span>
+                </p>
+                <p className="flex items-center gap-2">
+                  <span className="text-base">✉️</span>
+                  <span>nakirraakadda2026@gmail.com</span>
+                </p>
+              </div>
             </div>
-            <div className="rounded-full border border-orange-500/30 bg-black/40 px-4 py-2 text-sm font-medium text-orange-300">
-              4.9/5 rated
+            <div className="overflow-hidden rounded-2xl border border-white/10 shadow-2xl h-[280px]">
+              <iframe
+                src="https://www.google.com/maps?q=NA%20KIRRAAK%20ADDA%20Uppal&output=embed"
+                className="h-full w-full border-0"
+                loading="lazy"
+                title="Google Map for NA KIRRAAK ADDA"
+              />
             </div>
-          </div>
-          <div className="grid gap-4 lg:grid-cols-3">
-            {reviews.map((review) => (
-              <article key={review.name} className="rounded-2xl border border-white/10 bg-black/60 p-5">
-                {review.name === "Mahesh Tammadi (Local Guide)" ? (
-                  <img
-                    src="/images/reviews/mahesh-tammadi.jpg"
-                    alt="Mahesh Tammadi"
-                    className="mb-4 h-20 w-20 rounded-full object-cover"
-                  />
-                ) : null}
-                <p className="text-orange-400">★★★★★</p>
-                <p className="mt-3 text-sm text-zinc-300">“{review.text}”</p>
-                <p className="mt-4 font-semibold text-white">{review.name}</p>
-              </article>
-          ))}
           </div>
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 pb-8 sm:px-6 lg:px-8">
-        <div className="rounded-[2rem] border border-orange-500/20 bg-gradient-to-br from-orange-500/10 to-white/5 p-6 lg:p-8">
-          <div className="mb-6 flex flex-col gap-2">
-            <p className="text-sm font-semibold uppercase tracking-[0.35em] text-orange-400">Customer Reviews</p>
-            <h2 className="text-3xl font-bold text-white">Share your experience</h2>
+      {/* Bottom Section 2: Loved By Customers Reviews */}
+      <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="rounded-[2rem] border border-white/10 bg-[#14100C] p-6 sm:p-8 shadow-2xl space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-orange-400">Reviews</p>
+              <h2 className="mt-2 text-3xl font-black text-white">Loved by customers</h2>
+            </div>
+            <span className="rounded-full bg-orange-500/20 border border-orange-500/30 px-4 py-1.5 text-xs font-extrabold text-orange-400">
+              ⭐ 4.9 / 5 Rated
+            </span>
           </div>
-          <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-            <form onSubmit={handleSubmitReview} className="rounded-[1.5rem] border border-white/10 bg-black/60 p-5">
-              <div className="space-y-4">
-                <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-zinc-300">Upload Photo</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handlePhotoUpload}
-                    className="block w-full cursor-pointer rounded-xl border border-orange-500/30 bg-zinc-950/80 px-3 py-2 text-sm text-zinc-300 file:mr-3 file:rounded-full file:border-0 file:bg-orange-500 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-black"
-                  />
-                </label>
-                <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-zinc-300">Customer Name</span>
-                  <input
-                    value={customerNameInput}
-                    onChange={(event) => setCustomerNameInput(event.target.value)}
-                    className="w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none ring-0"
-                    placeholder="Enter your name"
-                    required
-                  />
-                </label>
-                <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-zinc-300">Rating (1–5 stars)</span>
-                  <select
-                    value={customerRating}
-                    onChange={(event) => setCustomerRating(Number(event.target.value))}
-                    className="w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none"
-                  >
-                    {[1, 2, 3, 4, 5].map((rating) => (
-                      <option key={rating} value={rating}>
-                        {rating} star{rating > 1 ? "s" : ""}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-zinc-300">One-line Review</span>
-                  <textarea
-                    value={customerReview}
-                    onChange={(event) => setCustomerReview(event.target.value)}
-                    className="min-h-24 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none"
-                    placeholder="Share your favorite moment"
-                    required
-                  />
-                </label>
-                <button
-                  type="submit"
-                  className="w-full rounded-full bg-orange-500 px-5 py-3 font-semibold text-black transition hover:bg-orange-400"
-                >
-                  Submit Review
-                </button>
+
+          <div className="grid gap-6 md:grid-cols-3">
+            {reviews.map((rev, idx) => (
+              <div key={idx} className="rounded-2xl border border-white/10 bg-black/60 p-5 flex flex-col justify-between space-y-4">
+                <div>
+                  <div className="flex text-orange-400 text-sm mb-3">⭐⭐⭐⭐⭐</div>
+                  <p className="text-xs text-zinc-300 italic leading-relaxed font-normal">"{rev.text}"</p>
+                </div>
+                <div className="flex items-center gap-3 pt-3 border-t border-white/5">
+                  <div className="h-9 w-9 rounded-full bg-orange-500/20 border border-orange-500/40 flex items-center justify-center font-bold text-orange-400 text-xs">
+                    {rev.name[0]}
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-white leading-none">{rev.name}</h4>
+                  </div>
+                </div>
               </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Bottom Section 3: Share Your Experience Form */}
+      <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="rounded-[2rem] border border-white/10 bg-[#14100C] p-6 sm:p-8 shadow-2xl space-y-6">
+          <div>
+            <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-orange-400">Customer Reviews</p>
+            <h2 className="mt-2 text-3xl font-black text-white">Share your experience</h2>
+          </div>
+
+          <div className="grid gap-8 lg:grid-cols-2">
+            {/* Form */}
+            <form onSubmit={handleSubmitReview} className="space-y-4 rounded-2xl border border-white/10 bg-black/60 p-6">
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1">Upload Photo (Optional)</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoUpload}
+                  className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-xs text-zinc-300 outline-none file:mr-3 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-[#FF6B00] file:text-black hover:file:bg-orange-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1">Customer Name</label>
+                <input
+                  type="text"
+                  value={customerNameInput}
+                  onChange={(e) => setCustomerNameInput(e.target.value)}
+                  className="w-full rounded-xl border border-white/10 bg-black/40 px-3.5 py-2.5 text-xs text-white outline-none focus:border-orange-500"
+                  placeholder="Enter your name"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1">Rating (1–5 stars)</label>
+                <select
+                  value={customerRating}
+                  onChange={(e) => setCustomerRating(Number(e.target.value))}
+                  className="w-full rounded-xl border border-white/10 bg-black/40 px-3.5 py-2.5 text-xs text-white outline-none focus:border-orange-500"
+                >
+                  <option value={5}>⭐⭐⭐⭐⭐ (5 Stars)</option>
+                  <option value={4}>⭐⭐⭐⭐ (4 Stars)</option>
+                  <option value={3}>⭐⭐⭐ (3 Stars)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1">One-line Review</label>
+                <textarea
+                  value={customerReview}
+                  onChange={(e) => setCustomerReview(e.target.value)}
+                  className="w-full rounded-xl border border-white/10 bg-black/40 px-3.5 py-2.5 text-xs text-white outline-none focus:border-orange-500 min-h-[70px]"
+                  placeholder="Share your favorite moment at NA KIRRAAK ADDA..."
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full rounded-full bg-[#FF6B00] py-3 text-xs font-extrabold text-black transition hover:bg-orange-400 shadow-lg shadow-orange-500/20"
+              >
+                Submit Review
+              </button>
             </form>
+
+            {/* Submitted reviews list */}
             <div className="space-y-4">
               {customerReviews.length === 0 ? (
-                <div className="rounded-[1.5rem] border border-white/10 bg-black/60 p-5 text-sm text-zinc-300">
-                  No reviews yet. Be the first to share your experience.
+                <div className="rounded-2xl border border-white/10 bg-black/40 p-8 text-center text-zinc-400">
+                  <p className="text-xs">No reviews submitted yet. Be the first to share your experience!</p>
                 </div>
               ) : (
-                customerReviews.map((review) => (
-                  <article key={review.id} className="rounded-[1.5rem] border border-white/10 bg-black/60 p-5">
-                    <div className="flex items-center gap-3">
-                      {review.photo ? (
-                        <img src={review.photo} alt={review.name} className="h-14 w-14 rounded-full object-cover" />
-                      ) : (
-                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-orange-500/20 text-lg font-semibold text-orange-300">
-                          {review.name.charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                      <div>
-                        <p className="font-semibold text-white">{review.name}</p>
-                        <p className="text-sm text-orange-400">{Array.from({ length: 5 }, (_, index) => (index < review.rating ? "★" : "☆")).join("")}</p>
-                      </div>
+                customerReviews.map((rev) => (
+                  <div key={rev.id} className="rounded-2xl border border-white/10 bg-black/60 p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-white">{rev.name}</h4>
+                      <span className="text-xs text-orange-400">{"⭐".repeat(rev.rating)}</span>
                     </div>
-                    <p className="mt-4 text-sm text-zinc-300">“{review.review}”</p>
-                  </article>
+                    <p className="text-xs text-zinc-300">{rev.review}</p>
+                    {rev.photo && (
+                      <img src={rev.photo} alt="Customer photo" className="h-20 w-auto rounded-xl object-cover mt-2 border border-white/10" />
+                    )}
+                  </div>
                 ))
               )}
             </div>
@@ -1003,78 +1288,66 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
-        <div className="rounded-[2rem] border border-white/10 bg-zinc-900/90 p-6 text-center lg:p-8">
-          <p className="text-sm font-semibold uppercase tracking-[0.35em] text-orange-400">Contact</p>
-          <h2 className="mt-2 text-3xl font-bold text-white">Order now for the ultimate bite</h2>
-          <p className="mx-auto mt-3 max-w-2xl text-zinc-300">
-            Craving something hot and delicious? Reach out anytime for dine-in, pickup or delivery.
-          </p>
-          <div className="mt-6 flex flex-wrap justify-center gap-3">
-            <a href="tel:9966533466" className="rounded-full bg-orange-500 px-5 py-3 font-semibold text-black">
-              Call Now
-            </a>
-            <a href="https://wa.me/919966533466" target="_blank" rel="noreferrer" className="rounded-full border border-orange-500/40 px-5 py-3 font-semibold text-orange-300">
-              WhatsApp Order
-            </a>
-          </div>
-          <div className="mt-6 space-y-2 text-sm text-zinc-300">
-            <p><span className="font-semibold text-white">Restaurant Name:</span> NA KIRRAAK ADDA</p>
-            <p><span className="font-semibold text-white">Address:</span> Venkateswara Colony, Vijayapuri Colony, Uppal, Hyderabad, Telangana 500039</p>
-            <p>
-              <span className="font-semibold text-white">Phone 1:</span>{" "}
-              <a href="tel:9966533466" className="text-orange-500 hover:underline">
-                9966533466
-              </a>
-            </p>
-            <p>
-              <span className="font-semibold text-white">Phone 2:</span>{" "}
-              <a href="tel:8885422211" className="text-orange-500 hover:underline">
-                8885422211
-              </a>
-            </p>
-            <p>
-              <span className="font-semibold text-white">WhatsApp:</span>{" "}
-              <a href="https://wa.me/919966533466" target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:underline">
-                Chat on WhatsApp
-              </a>
-            </p>
-            <p>
-              <span className="font-semibold text-white">Google Maps:</span>{" "}
-              <a href="https://share.google/g5HhIATUstL2jV2bS" target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:underline">
-                View Location
-              </a>
-            </p>
-            <p>
-              <span className="font-semibold text-white">Instagram:</span>{" "}
-              <a href="https://www.instagram.com/nakirraakadda?igsh=MWNsd3p5bmdjMxZA%3D%3D&utm_source=qr" target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:underline">
-                @nakirraakadda
-              </a>
+      {/* Bottom Section 4: Contact Footer ("Order now for the ultimate bite") */}
+      <footer className="border-t border-white/10 bg-black/90 py-12 px-4 mt-8">
+        <div className="mx-auto max-w-4xl text-center space-y-6">
+          <div>
+            <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-orange-400">Contact</p>
+            <h2 className="mt-2 text-3xl font-black text-white">Order now for the ultimate bite</h2>
+            <p className="mt-2 text-xs text-zinc-400 max-w-md mx-auto">
+              Craving something hot and delicious? Reach out anytime for dine-in, pickup or fast delivery.
             </p>
           </div>
-        </div>
-      </section>
 
-      <footer className="py-6 text-center text-white">
-        <p>
-          Website Created by{" "}
-          <a
-            href="https://www.instagram.com/chandu_reddy_vlog?igsh=MXdoMXRmMWRxZm8zYw%3D%3D&utm_source=qr"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-bold text-orange-500 hover:text-orange-400 hover:underline"
-          >
-            Chandu Creations
-          </a>
-          {" • "}
-          <a
-            href="mailto:mchandra1477@gmail.com"
-            className="font-bold text-orange-500 hover:text-orange-400 hover:underline"
-          >
-            Email
-          </a>
-        </p>
+          <div className="flex justify-center gap-4 pt-2">
+            <a
+              href="tel:+919966533466"
+              className="rounded-full bg-[#FF6B00] px-6 py-2.5 text-xs font-extrabold text-black hover:bg-orange-400 transition shadow-lg"
+            >
+              📞 Call Now
+            </a>
+            <a
+              href="https://wa.me/919966533466?text=Hi%20NA%20KIRRAAK%20ADDA%2C%20I%20want%20to%20place%20an%20order"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-full border border-emerald-500/50 bg-emerald-500/20 px-6 py-2.5 text-xs font-extrabold text-emerald-300 hover:bg-emerald-500/30 transition shadow-lg"
+            >
+              💬 WhatsApp Order
+            </a>
+          </div>
+
+          <div className="space-y-1.5 text-xs text-zinc-300 pt-4 border-t border-white/10 max-w-md mx-auto">
+            <p><strong>Restaurant Name:</strong> NA KIRRAAK ADDA</p>
+            <p><strong>Address:</strong> Venkateswara Colony, Vijayapuri Colony, Uppal, Hyderabad, Telangana 500039</p>
+            <p><strong>Phone 1:</strong> <a href="tel:9966533466" className="text-orange-400 hover:underline">9966533466</a></p>
+            <p><strong>Phone 2:</strong> <a href="tel:8885422211" className="text-orange-400 hover:underline">8885422211</a></p>
+            <p><strong>WhatsApp:</strong> <a href="https://wa.me/919966533466" className="text-emerald-400 hover:underline">Chat on WhatsApp</a></p>
+            <p><strong>Google Maps:</strong> <a href="https://maps.google.com/?q=NA+KIRRAAK+ADDA+Uppal" target="_blank" className="text-orange-400 hover:underline">View Location</a></p>
+            <p><strong>Instagram:</strong> <span className="text-orange-400">@nakirraakadda</span></p>
+          </div>
+
+          <p className="text-xs text-zinc-400 pt-6 border-t border-white/10">
+            © 2026 <strong>NA KIRRAAK ADDA</strong>. All rights reserved. • Website Created by{" "}
+            <a
+              href="https://www.instagram.com/chandu_reddy_vlog?igsh=MXdoMXRmMWRxZm8zYw%3D%3D&utm_source=qr"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-extrabold text-orange-400 hover:underline"
+            >
+              Chandu Creations
+            </a>{" "}
+            &amp;{" "}
+            <a
+              href="https://nexzen.me"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-extrabold text-orange-400 hover:underline"
+            >
+              Nexzen.me
+            </a>
+          </p>
+        </div>
       </footer>
-    </main>
+    </div>
   );
 }
