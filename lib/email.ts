@@ -1,10 +1,21 @@
 import { Resend } from "resend";
 
-console.log("API KEY:", process.env.RESEND_API_KEY);
+let resend: any = null;
 
-export const resend = new Resend(process.env.RESEND_API_KEY);
+try {
+  if (process.env.RESEND_API_KEY) {
+    resend = new Resend(process.env.RESEND_API_KEY);
+  }
+} catch (error) {
+  console.log("Resend API key not configured");
+}
 
 export async function sendOrderEmail(order: any) {
+  if (!resend) {
+    console.log("Email service not configured. Order details:", order);
+    return;
+  }
+
   const itemsHtml = order.cartItems
     .map(
       (item: any, index: number) => `
@@ -57,5 +68,5 @@ export async function sendOrderEmail(order: any) {
 
       </div>
     `,
-  });
+  }).catch((error: any) => console.log("Failed to send email:", error));
 }

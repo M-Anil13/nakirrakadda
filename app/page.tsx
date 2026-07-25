@@ -513,7 +513,7 @@ export default function Home() {
     <main className="min-h-screen bg-[#050505] text-white">
       <button
         onClick={() => {
-          document.getElementById("cart-section")?.scrollIntoView({ behavior: "smooth" });
+          document.getElementById("menu")?.scrollIntoView({ behavior: "smooth" });
         }}
         className="fixed right-4 top-4 z-[9999] cursor-pointer rounded-full border border-orange-500/40 bg-black/80 p-3 shadow-lg"
       >
@@ -524,19 +524,20 @@ export default function Home() {
           </span>
         ) : null}
       </button>
+      {/* Hero Section - Centered */}
       <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         <div
-          className="relative min-h-[60vh] sm:min-h-[80vh] overflow-hidden rounded-[2rem] border border-orange-500/20 p-6 shadow-2xl shadow-orange-500/10 sm:p-8 lg:p-12"
+          className="relative min-h-[60vh] sm:min-h-[80vh] overflow-hidden rounded-[2rem] border border-orange-500/20 p-6 shadow-2xl shadow-orange-500/10 sm:p-8 lg:p-12 flex items-center justify-center"
           style={{
-            backgroundImage: "linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('/logo/brand-image.jpeg')",
-            backgroundPosition: "left center",
+            backgroundImage: "linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url('/logo/brand-image.jpeg')",
+            backgroundPosition: "center center",
             backgroundSize: "contain",
             backgroundRepeat: "no-repeat",
             backgroundColor: "#000000",
           }}
         >
           <div className="absolute inset-0" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,_rgba(255,255,255,0.08),_transparent_30%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(255,165,0,0.1),_transparent_60%)]" />
         </div>
         <div className="mt-4 mx-auto inline-flex flex-wrap items-center justify-center gap-x-3 gap-y-1 rounded-xl border border-orange-500/20 bg-gradient-to-br from-zinc-900 to-zinc-950 px-4 py-2 shadow-lg shadow-orange-500/5">
           <span className="text-base">🕐</span>
@@ -554,6 +555,56 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Featured Offer Section - Replaces Cart */}
+      <section className="mx-auto max-w-7xl px-4 pb-8 sm:px-6 lg:px-8">
+        <div className="rounded-[2rem] border border-orange-500/20 bg-zinc-950/90 p-6 lg:p-8">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.35em] text-orange-400">Special Offers</p>
+              <h2 className="mt-2 text-3xl font-bold text-white">What's on your mind?</h2>
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+            {/* Pizza */}
+            <div className="rounded-[1.5rem] border border-orange-500/20 bg-gradient-to-br from-white/5 to-orange-500/5 p-4 flex flex-col items-center justify-center cursor-pointer hover:scale-105 transition transform"
+              onClick={() => document.getElementById("menu")?.scrollIntoView({ behavior: "smooth" })}>
+              <div className="text-5xl mb-2">🍕</div>
+              <p className="font-semibold text-white text-center">Pizza</p>
+            </div>
+
+            {/* Burger */}
+            <div className="rounded-[1.5rem] border border-orange-500/20 bg-gradient-to-br from-white/5 to-orange-500/5 p-4 flex flex-col items-center justify-center cursor-pointer hover:scale-105 transition transform"
+              onClick={() => document.getElementById("menu")?.scrollIntoView({ behavior: "smooth" })}>
+              <div className="text-5xl mb-2">🍔</div>
+              <p className="font-semibold text-white text-center">Burger</p>
+            </div>
+
+            {/* Sandwich */}
+            <div className="rounded-[1.5rem] border border-orange-500/20 bg-gradient-to-br from-white/5 to-orange-500/5 p-4 flex flex-col items-center justify-center cursor-pointer hover:scale-105 transition transform"
+              onClick={() => document.getElementById("menu")?.scrollIntoView({ behavior: "smooth" })}>
+              <div className="text-5xl mb-2">🥪</div>
+              <p className="font-semibold text-white text-center">Sandwich</p>
+            </div>
+
+            {/* Beverages */}
+            <div className="rounded-[1.5rem] border border-orange-500/20 bg-gradient-to-br from-white/5 to-orange-500/5 p-4 flex flex-col items-center justify-center cursor-pointer hover:scale-105 transition transform"
+              onClick={() => document.getElementById("menu")?.scrollIntoView({ behavior: "smooth" })}>
+              <div className="text-5xl mb-2">🥤</div>
+              <p className="font-semibold text-white text-center">Beverages</p>
+            </div>
+
+            {/* See All */}
+            <div className="rounded-[1.5rem] border border-orange-500/20 bg-gradient-to-br from-white/5 to-orange-500/5 p-4 flex flex-col items-center justify-center cursor-pointer hover:scale-105 transition transform"
+              onClick={() => document.getElementById("menu")?.scrollIntoView({ behavior: "smooth" })}>
+              <div className="text-5xl mb-2">👀</div>
+              <p className="font-semibold text-white text-center">See all</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Cart Checkout Section */}
       <section id="cart-section" className="mx-auto max-w-7xl px-4 pb-8 sm:px-6 lg:px-8">
         <div className="rounded-[2rem] border border-orange-500/20 bg-zinc-950/90 p-6 lg:p-8">
           <div className="flex flex-wrap items-center justify-between gap-3">

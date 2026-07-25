@@ -3,6 +3,7 @@ import { collection, addDoc, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { sendOrderEmail } from "@/lib/email";
 import { sendOrderSMS } from "@/lib/sms";
+import { createOrder } from "@/lib/admin-db";
 
 export async function GET() {
   const snapshot = await getDocs(collection(db, "orders"));
@@ -39,6 +40,17 @@ export async function POST(request: Request) {
       // Status
       status: "Received",
       createdAt: new Date(),
+    });
+
+    // Save Order to local database
+    createOrder({
+      customerName: body.customerName,
+      phone: body.phone,
+      address: body.address,
+      paymentMethod: body.paymentMethod,
+      items: body.cartItems,
+      total: body.grandTotal,
+      status: "Received",
     });
 
     const order = {
