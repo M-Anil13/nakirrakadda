@@ -526,52 +526,32 @@ export default function Home() {
       </button>
       <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         <div
-          className="relative overflow-hidden rounded-[2rem] border border-orange-500/20 p-6 shadow-2xl shadow-orange-500/10 sm:p-8 lg:p-12"
+          className="relative min-h-[60vh] sm:min-h-[80vh] overflow-hidden rounded-[2rem] border border-orange-500/20 p-6 shadow-2xl shadow-orange-500/10 sm:p-8 lg:p-12"
           style={{
             backgroundImage: "linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('/logo/brand-image.jpeg')",
             backgroundPosition: "left center",
             backgroundSize: "contain",
             backgroundRepeat: "no-repeat",
             backgroundColor: "#000000",
-            minHeight: "auto",
           }}
         >
           <div className="absolute inset-0" />
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,_rgba(255,255,255,0.08),_transparent_30%)]" />
-          <div className="relative flex min-h-[60vh] sm:min-h-[80vh] items-center justify-center px-2 pt-8 sm:pt-10 lg:px-0 lg:pt-0">
-            <div className="w-full max-w-md sm:max-w-2xl lg:max-w-3xl text-center flex flex-col items-center justify-center gap-4 px-2">
-              
-              </div>
-            
-
-            <div className="mt-8 flex flex-col items-center lg:flex-row lg:justify-between lg:items-start">
-              <div className="w-full max-w-xl order-2 lg:order-1">
-                <div className="mb-5 flex flex-col items-center gap-3 text-center">
-                  <div className="w-full space-y-4">
-                 
-  
-</div>
-</div>
-           {/* Timings */}
-<div className="w-full mt-4 lg:mt-0 rounded-2xl border border-white/10 bg-zinc-900 p-5">
-  <p className="text-sm font-bold text-green-400">
-    ● OPEN NOW
-  </p>
-
-  <h3 className="mt-2 text-3xl font-bold text-white">
-    3:00 PM – 12:00 AM
-  </h3>
-
-  <p className="mt-1 text-zinc-400">
-    Everyday
-  </p>
-</div>      
-                </div>
-                </div>
-              </div>
-             </div> 
-             
-        
+        </div>
+        <div className="mt-4 mx-auto inline-flex flex-wrap items-center justify-center gap-x-3 gap-y-1 rounded-xl border border-orange-500/20 bg-gradient-to-br from-zinc-900 to-zinc-950 px-4 py-2 shadow-lg shadow-orange-500/5">
+          <span className="text-base">🕐</span>
+          <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-orange-400">
+            Opening Hours
+          </span>
+          <span className="hidden sm:inline h-3 w-px bg-zinc-700" />
+          <span className="text-sm font-bold text-white">
+            3:00 PM – 12:00 AM
+          </span>
+          <span className="hidden sm:inline h-3 w-px bg-zinc-700" />
+          <span className="text-[10px] text-zinc-500">Everyday</span>
+          <span className="hidden sm:inline h-3 w-px bg-zinc-700" />
+          <span className="text-[10px] text-zinc-500">Dine-In · Takeaway · Delivery</span>
+        </div>
       </section>
 
       <section id="cart-section" className="mx-auto max-w-7xl px-4 pb-8 sm:px-6 lg:px-8">
