@@ -108,12 +108,9 @@ export default function AdminLoginPage() {
             </button>
           </form>
 
-          <div className="pt-4 border-t border-white/10 text-center space-y-1">
+          <div className="pt-4 border-t border-white/10 text-center">
             <p className="text-[11px] text-zinc-400 font-semibold">
-              🔑 Admin: <span className="text-white">admin@nakirraak.com</span> / <span className="text-white">NA@Kirraak2026</span>
-            </p>
-            <p className="text-[11px] text-zinc-500">
-              Staff / Employees log in using Name or Mobile Number & PIN
+              🔒 Authorized Restaurant Staff & Admin Access Only
             </p>
           </div>
         </div>
