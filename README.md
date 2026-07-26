@@ -103,5 +103,5 @@ CREATE TABLE IF NOT EXISTS offers (
 
 ## 👨‍💻 Author & Credits
 
-- **Author & Developer**: `naniyadav` (`nakirraakadda2026@gmail.com`)
+- **Author & Developer**: `naniyadav` (`naniyadav1312@gmail.com`)
 - **Creators**: Chandu Creations & Nexzen.me
