@@ -181,8 +181,11 @@ if (countRow.count < 30) {
   }
 }
 
-export function getAllProducts(): Product[] {
-  const stmt = db.prepare(`SELECT * FROM products WHERE isActive = 1 ORDER BY createdAt ASC`);
+export function getAllProducts(includeDisabled: boolean = false): Product[] {
+  const query = includeDisabled
+    ? `SELECT * FROM products ORDER BY isActive DESC, createdAt ASC`
+    : `SELECT * FROM products WHERE isActive = 1 ORDER BY createdAt ASC`;
+  const stmt = db.prepare(query);
   return stmt.all().map((p: any) => ({
     ...p,
     isVeg: Boolean(p.isVeg),

@@ -969,51 +969,77 @@ export default function Home() {
             <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-center">
               <span className="text-xs text-zinc-300">Amount Payable</span>
               <p className="text-3xl font-black text-emerald-400 mt-0.5">₹{grandTotal.toFixed(0)}</p>
-              <p className="text-[11px] text-zinc-400 mt-1">Store UPI: <strong>9966533466@ybl</strong> (NA KIRRAAK ADDA)</p>
+              {paymentMethod === "Bank Transfer" ? (
+                <p className="text-[11px] text-zinc-300 mt-1">Direct Bank Deposit Details Below</p>
+              ) : (
+                <p className="text-[11px] text-zinc-400 mt-1">Store UPI: <strong className="text-orange-400 font-bold">{gatewaySettings.upiId || "9966533466@ybl"}</strong> (NA KIRRAAK ADDA)</p>
+              )}
             </div>
 
-            {/* Dynamic UPI QR Code Image */}
-            <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-white text-center shadow-2xl">
-              <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=upi://pay?pa=9966533466@ybl%26pn=NA%20KIRRAAK%20ADDA%26am=${grandTotal.toFixed(0)}%26cu=INR`}
-                alt="UPI Payment QR Code"
-                className="w-44 h-44 object-contain rounded-lg"
-              />
-              <p className="text-[11px] font-bold text-black mt-2">Scan with GPay, PhonePe, Paytm, or BHIM</p>
-            </div>
+            {paymentMethod === "Bank Transfer" ? (
+              <div className="rounded-2xl border border-orange-500/40 bg-black/80 p-4 space-y-2 text-left">
+                <p className="text-xs font-bold text-orange-400 uppercase tracking-wider">🏦 Bank Transfer Details</p>
+                <div className="text-xs text-zinc-300 space-y-1 font-mono">
+                  {gatewaySettings.bankDetails ? (
+                    gatewaySettings.bankDetails.split("|").map((line: string, i: number) => (
+                      <p key={i}>• {line.trim()}</p>
+                    ))
+                  ) : (
+                    <>
+                      <p>• Bank: State Bank of India</p>
+                      <p>• A/C: 1234567890</p>
+                      <p>• IFSC: SBIN0001234</p>
+                      <p>• Name: NA KIRRAAK ADDA</p>
+                    </>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Dynamic UPI QR Code Image */}
+                <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-white text-center shadow-2xl">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=upi://pay?pa=${encodeURIComponent(gatewaySettings.upiId || "9966533466@ybl")}%26pn=NA%20KIRRAAK%20ADDA%26am=${grandTotal.toFixed(0)}%26cu=INR`}
+                    alt="UPI Payment QR Code"
+                    className="w-44 h-44 object-contain rounded-lg"
+                  />
+                  <p className="text-[11px] font-bold text-black mt-2">Scan with GPay, PhonePe, Paytm, or BHIM</p>
+                </div>
 
-            {/* Direct Pay Buttons for Mobile */}
-            <div className="grid grid-cols-3 gap-2">
-              <a
-                href={`upi://pay?pa=9966533466@ybl&pn=NA%20KIRRAAK%20ADDA&am=${grandTotal.toFixed(0)}&cu=INR`}
-                className="p-2.5 rounded-xl border border-white/10 bg-black/60 text-center text-xs font-bold text-white hover:border-orange-500"
-              >
-                📱 GPay / PhonePe
-              </a>
-              <a
-                href={`upi://pay?pa=9966533466@ybl&pn=NA%20KIRRAAK%20ADDA&am=${grandTotal.toFixed(0)}&cu=INR`}
-                className="p-2.5 rounded-xl border border-white/10 bg-black/60 text-center text-xs font-bold text-white hover:border-orange-500"
-              >
-                📲 Paytm UPI
-              </a>
-              <a
-                href={`upi://pay?pa=9966533466@ybl&pn=NA%20KIRRAAK%20ADDA&am=${grandTotal.toFixed(0)}&cu=INR`}
-                className="p-2.5 rounded-xl border border-white/10 bg-black/60 text-center text-xs font-bold text-white hover:border-orange-500"
-              >
-                💳 BHIM UPI
-              </a>
-            </div>
+                {/* Direct Pay Buttons for Mobile */}
+                <div className="grid grid-cols-3 gap-2">
+                  <a
+                    href={`upi://pay?pa=${encodeURIComponent(gatewaySettings.upiId || "9966533466@ybl")}&pn=NA%20KIRRAAK%20ADDA&am=${grandTotal.toFixed(0)}&cu=INR`}
+                    className="p-2.5 rounded-xl border border-white/10 bg-black/60 text-center text-xs font-bold text-white hover:border-orange-500"
+                  >
+                    📱 GPay / PhonePe
+                  </a>
+                  <a
+                    href={`upi://pay?pa=${encodeURIComponent(gatewaySettings.upiId || "9966533466@ybl")}&pn=NA%20KIRRAAK%20ADDA&am=${grandTotal.toFixed(0)}&cu=INR`}
+                    className="p-2.5 rounded-xl border border-white/10 bg-black/60 text-center text-xs font-bold text-white hover:border-orange-500"
+                  >
+                    📲 Paytm UPI
+                  </a>
+                  <a
+                    href={`upi://pay?pa=${encodeURIComponent(gatewaySettings.upiId || "9966533466@ybl")}&pn=NA%20KIRRAAK%20ADDA&am=${grandTotal.toFixed(0)}&cu=INR`}
+                    className="p-2.5 rounded-xl border border-white/10 bg-black/60 text-center text-xs font-bold text-white hover:border-orange-500"
+                  >
+                    💳 BHIM UPI
+                  </a>
+                </div>
+              </>
+            )}
 
             {/* Enter 12-digit UTR Ref Number */}
             <div className="space-y-1.5 pt-2 border-t border-white/10">
               <label className="block text-xs font-semibold text-zinc-300">
-                Enter 12-digit Payment UTR / Reference No.
+                Enter Payment Reference / UTR Number
               </label>
               <input
                 type="text"
                 value={upiUtrInput}
                 onChange={(e) => setUpiUtrInput(e.target.value)}
-                placeholder="e.g. 123456789012 (from payment receipt)"
+                placeholder="e.g. 123456789012 (from receipt or bank reference)"
                 className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-xs text-white outline-none focus:border-orange-500 font-mono"
               />
               <p className="text-[10px] text-zinc-400">Entering your UTR ensures instant payment verification by kitchen staff.</p>

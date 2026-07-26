@@ -6,6 +6,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
     const featured = searchParams.get('featured');
+    const includeDisabled = searchParams.get('includeDisabled') === 'true';
 
     if (featured === 'true') {
       return NextResponse.json(getFeaturedItems());
@@ -15,7 +16,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(getProductsByCategory(category));
     }
 
-    return NextResponse.json(getAllProducts());
+    return NextResponse.json(getAllProducts(includeDisabled));
   } catch (error) {
     return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });
   }

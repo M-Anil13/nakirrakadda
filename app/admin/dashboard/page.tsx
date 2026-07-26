@@ -702,7 +702,7 @@ export default function AdminDashboard() {
 
   const loadProducts = async () => {
     try {
-      const response = await fetch("/api/products");
+      const response = await fetch("/api/products?includeDisabled=true");
       const data = await response.json();
       setProducts(data);
     } catch (error) {
