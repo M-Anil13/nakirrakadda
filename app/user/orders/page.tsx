@@ -232,34 +232,45 @@ export default function OrdersPage() {
                   </div>
 
                   {/* Payment & Bill Breakdown Card */}
-                  <div className="rounded-2xl border border-white/10 bg-black/40 p-4 space-y-2 text-xs">
-                    <p className="text-[11px] font-bold text-orange-400 uppercase tracking-wider">Payment & Bill Invoice Breakdown</p>
-                    
-                    <div className="flex justify-between text-zinc-400">
-                      <span>Items Subtotal:</span>
-                      <span className="font-semibold text-white">₹{((order as any).subtotal || (order.total * 0.90)).toFixed(0)}</span>
-                    </div>
+                  {/* Payment & Bill Breakdown Card */}
+                  {(() => {
+                    const itemsSubtotal = parsedItems.reduce((acc, item) => acc + (Number((item as any).price || (item as any).unit_price || 0) * Number((item as any).qty || (item as any).quantity || 1)), 0);
+                    const orderGst = (order as any).gst !== undefined && (order as any).gst !== null ? Number((order as any).gst) : Math.round(itemsSubtotal * 0.05);
+                    const orderDelivery = (order as any).deliveryCharge !== undefined && (order as any).deliveryCharge !== null
+                      ? Number((order as any).deliveryCharge)
+                      : Math.max(0, Math.round(Number(order.total) - itemsSubtotal - orderGst));
 
-                    <div className="flex justify-between text-zinc-400">
-                      <span>GST (5% Tax):</span>
-                      <span className="font-semibold text-white">₹{((order as any).gst || (order.total * 0.05)).toFixed(0)}</span>
-                    </div>
+                    return (
+                      <div className="rounded-2xl border border-white/10 bg-black/40 p-4 space-y-2 text-xs">
+                        <p className="text-[11px] font-bold text-orange-400 uppercase tracking-wider">Payment & Bill Invoice Breakdown</p>
+                        
+                        <div className="flex justify-between text-zinc-400">
+                          <span>Items Subtotal:</span>
+                          <span className="font-semibold text-white">₹{itemsSubtotal.toFixed(0)}</span>
+                        </div>
 
-                    <div className="flex justify-between text-zinc-400">
-                      <span>Delivery Charge:</span>
-                      <span className="font-semibold text-white">{(order as any).deliveryCharge ? `₹${(order as any).deliveryCharge}` : "FREE Delivery (₹0)"}</span>
-                    </div>
+                        <div className="flex justify-between text-zinc-400">
+                          <span>GST (5% Tax):</span>
+                          <span className="font-semibold text-white">₹{orderGst.toFixed(0)}</span>
+                        </div>
 
-                    <div className="flex justify-between pt-2 border-t border-white/10 font-bold text-sm">
-                      <span className="text-white">Grand Total:</span>
-                      <span className="text-emerald-400 font-black">₹{order.total}</span>
-                    </div>
+                        <div className="flex justify-between text-zinc-400">
+                          <span>Delivery Charge:</span>
+                          <span className="font-semibold text-white">{orderDelivery > 0 ? `₹${orderDelivery.toFixed(0)}` : "FREE Delivery (₹0)"}</span>
+                        </div>
 
-                    <div className="pt-2 border-t border-white/5 flex flex-wrap items-center justify-between text-[11px] text-zinc-400">
-                      <span>💳 <strong>Payment Method:</strong> {order.paymentMethod}</span>
-                      <span>📍 <strong>Address:</strong> {order.address}</span>
-                    </div>
-                  </div>
+                        <div className="flex justify-between pt-2 border-t border-white/10 font-bold text-sm">
+                          <span className="text-white">Grand Total:</span>
+                          <span className="text-emerald-400 font-black">₹{order.total}</span>
+                        </div>
+
+                        <div className="pt-2 border-t border-white/5 flex flex-wrap items-center justify-between text-[11px] text-zinc-400">
+                          <span>💳 <strong>Payment Method:</strong> {order.paymentMethod}</span>
+                          <span>📍 <strong>Address:</strong> {order.address}</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </article>
               );
             })}

@@ -234,6 +234,15 @@ try {
 try {
   db.exec(`ALTER TABLE customer_orders ADD COLUMN deviceId TEXT`);
 } catch (e) {}
+try {
+  db.exec(`ALTER TABLE customer_orders ADD COLUMN subtotal REAL`);
+} catch (e) {}
+try {
+  db.exec(`ALTER TABLE customer_orders ADD COLUMN gst REAL`);
+} catch (e) {}
+try {
+  db.exec(`ALTER TABLE customer_orders ADD COLUMN deliveryCharge REAL`);
+} catch (e) {}
 
 // Hash a password
 function hashPassword(password: string): string {
@@ -413,8 +422,8 @@ export function createOrder(order: any): any {
   const id = `order_${Date.now()}_${Math.random().toString(16).slice(2)}`;
   const now = Date.now();
   const stmt = db.prepare(`
-    INSERT INTO customer_orders (id, customerName, phone, address, items, total, status, paymentMethod, couponCode, deviceId, createdAt, updatedAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO customer_orders (id, customerName, phone, address, items, subtotal, gst, deliveryCharge, total, status, paymentMethod, couponCode, deviceId, createdAt, updatedAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   stmt.run(
     id,
@@ -422,6 +431,9 @@ export function createOrder(order: any): any {
     order.phone,
     order.address,
     JSON.stringify(order.items),
+    order.subtotal || 0,
+    order.gst || 0,
+    order.deliveryCharge !== undefined ? order.deliveryCharge : 0,
     order.total,
     order.status || 'Received',
     order.paymentMethod,
