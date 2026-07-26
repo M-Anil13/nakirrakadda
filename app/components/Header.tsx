@@ -19,6 +19,7 @@ export default function Header() {
   const [locationModalOpen, setLocationModalOpen] = useState(false);
   const [locationStatus, setLocationStatus] = useState<string | null>(null);
   const [gpsActive, setGpsActive] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
 
   useEffect(() => {
     const userData = localStorage.getItem("user");
@@ -26,6 +27,48 @@ export default function Header() {
       setUser(JSON.parse(userData));
     }
   }, []);
+
+  useEffect(() => {
+    const updateCartCount = () => {
+      try {
+        const userData = localStorage.getItem("user");
+        const userObj = userData ? JSON.parse(userData) : null;
+        const key = userObj && (userObj.id || userObj.username)
+          ? `nakirraak_cart_${userObj.id || userObj.username}`
+          : "nakirraak_cart_guest";
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          const items = JSON.parse(raw);
+          if (Array.isArray(items)) {
+            const totalQty = items.reduce((acc: number, item: any) => acc + (Number(item.qty) || 1), 0);
+            setCartCount(totalQty);
+            return;
+          }
+        }
+        setCartCount(0);
+      } catch (e) {
+        setCartCount(0);
+      }
+    };
+
+    updateCartCount();
+
+    const handleCartEvent = (e: any) => {
+      if (e.detail && Array.isArray(e.detail)) {
+        const totalQty = e.detail.reduce((acc: number, item: any) => acc + (Number(item.qty) || 1), 0);
+        setCartCount(totalQty);
+      } else {
+        updateCartCount();
+      }
+    };
+
+    window.addEventListener("cart-updated", handleCartEvent);
+    window.addEventListener("storage", updateCartCount);
+    return () => {
+      window.removeEventListener("cart-updated", handleCartEvent);
+      window.removeEventListener("storage", updateCartCount);
+    };
+  }, [user]);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -105,8 +148,20 @@ export default function Header() {
             </button>
           </div>
 
-          {/* Right: Auth / Menu */}
-          <div className="flex items-center gap-3">
+          {/* Right: Cart & Auth Profile Menu */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* User Isolated Cart Icon Button */}
+            <button
+              onClick={() => window.dispatchEvent(new Event("open-nakirraak-cart"))}
+              className="relative flex items-center gap-1.5 bg-orange-500/10 border border-orange-500/40 text-orange-400 px-3 py-1.5 rounded-full text-xs font-extrabold hover:bg-orange-500/20 transition shadow-md"
+              title="View your isolated shopping cart"
+            >
+              <span>🛒</span>
+              <span className="hidden sm:inline">Cart</span>
+              <span className="bg-[#FF6B00] text-black text-[10px] font-black px-1.5 py-0.2 rounded-full min-w-[18px] text-center">
+                {cartCount}
+              </span>
+            </button>
 
 
             {user ? (

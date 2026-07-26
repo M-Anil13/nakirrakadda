@@ -357,6 +357,57 @@ export default function Home() {
     }
   }, [selectedLocation]);
 
+  // User-Isolated Cart key generator
+  const getCartStorageKey = () => {
+    try {
+      const userData = localStorage.getItem("user");
+      if (userData) {
+        const u = JSON.parse(userData);
+        if (u && (u.id || u.username)) {
+          return `nakirraak_cart_${u.id || u.username}`;
+        }
+      }
+    } catch (e) {}
+    return "nakirraak_cart_guest";
+  };
+
+  // Load cart based on active isolated user session
+  useEffect(() => {
+    const key = getCartStorageKey();
+    try {
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) setCartItems(parsed);
+        else setCartItems([]);
+      } else {
+        setCartItems([]);
+      }
+    } catch (e) {
+      setCartItems([]);
+    }
+  }, [loggedInUser]);
+
+  // Sync cart changes to isolated localStorage key and notify Header badge
+  useEffect(() => {
+    const key = getCartStorageKey();
+    try {
+      localStorage.setItem(key, JSON.stringify(cartItems));
+      window.dispatchEvent(new CustomEvent("cart-updated", { detail: cartItems }));
+    } catch (e) {}
+  }, [cartItems]);
+
+  // Listen to open-nakirraak-cart event dispatched from Header Cart button
+  useEffect(() => {
+    const handleOpenCart = () => {
+      setCheckoutOpen(true);
+    };
+    window.addEventListener("open-nakirraak-cart", handleOpenCart);
+    return () => {
+      window.removeEventListener("open-nakirraak-cart", handleOpenCart);
+    };
+  }, []);
+
   const groupedCategories = useMemo(() => {
     const map = new Map<string, MenuItem[]>();
     for (const p of dynamicProducts) {
