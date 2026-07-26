@@ -148,42 +148,29 @@ export default function AdminDashboard() {
   });
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  // Audio alarm player for new unconfirmed orders
+  // Audio alarm player for new unconfirmed orders (Default: zomato_sms.mp3)
   const playAlertSound = () => {
     try {
-      if (soundType === "custom" && customAudioUrl) {
-        const audio = new Audio(customAudioUrl);
-        audio.play().catch(() => {});
-        return;
-      }
-
-      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioContext) return;
-      const ctx = new AudioContext();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      if (soundType === "siren") {
-        osc.type = "sawtooth";
-        osc.frequency.setValueAtTime(600, ctx.currentTime);
-        osc.frequency.linearRampToValueAtTime(1200, ctx.currentTime + 0.2);
-        osc.frequency.linearRampToValueAtTime(600, ctx.currentTime + 0.4);
-      } else if (soundType === "bell") {
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(1046.5, ctx.currentTime); // C6 bell
-      } else {
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(880, ctx.currentTime);
-      }
-      
-      gain.gain.setValueAtTime(0.3, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
-      
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      
-      osc.start();
-      osc.stop(ctx.currentTime + 0.4);
+      const targetSound = customAudioUrl || "/sound/zomato_sms.mp3";
+      const audio = new Audio(targetSound);
+      audio.play().catch(() => {
+        // Fallback tone if browser restricts autoplay before user interaction
+        try {
+          const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+          if (!AudioContext) return;
+          const ctx = new AudioContext();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(880, ctx.currentTime);
+          gain.gain.setValueAtTime(0.3, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.4);
+        } catch (e2) {}
+      });
     } catch (e) {}
   };
 
