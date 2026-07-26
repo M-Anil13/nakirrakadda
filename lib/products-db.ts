@@ -2,14 +2,27 @@ import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
 
-const dbDir = path.join(process.cwd(), "data");
-const dbPath = path.join(dbDir, "products.db");
+const getSafeDatabase = (filename: string) => {
+  try {
+    const isVercel = process.env.VERCEL === "1" || process.env.NODE_ENV === "production";
+    const targetDir = isVercel ? "/tmp" : path.join(process.cwd(), "data");
+    if (!fs.existsSync(targetDir)) {
+      try {
+        fs.mkdirSync(targetDir, { recursive: true });
+      } catch (e) {}
+    }
+    const targetPath = path.join(targetDir, filename);
+    return new Database(targetPath);
+  } catch (e) {
+    try {
+      return new Database(`/tmp/${filename}`);
+    } catch (e2) {
+      return new Database(":memory:");
+    }
+  }
+};
 
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
-}
-
-const db = new Database(dbPath);
+const db = getSafeDatabase("products.db");
 
 export interface Product {
   id: string;

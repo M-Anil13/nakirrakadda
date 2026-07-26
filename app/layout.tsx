@@ -16,6 +16,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "NA KIRRAAK ADDA | Pizza & Burgers",
   description: "Modern restaurant homepage for NA KIRRAAK ADDA with pizzas, burgers, orders, location and reviews.",
+  icons: {
+    icon: "/logo/brand-image.jpeg",
+    shortcut: "/logo/brand-image.jpeg",
+    apple: "/logo/brand-image.jpeg",
+  },
 };
 
 export default function RootLayout({

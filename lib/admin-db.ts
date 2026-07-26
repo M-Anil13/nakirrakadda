@@ -3,14 +3,27 @@ import path from "path";
 import fs from "fs";
 import crypto from "crypto";
 
-const dbDir = path.join(process.cwd(), "data");
-const dbPath = path.join(dbDir, "admin.db");
+const getSafeDatabase = (filename: string) => {
+  try {
+    const isVercel = process.env.VERCEL === "1" || process.env.NODE_ENV === "production";
+    const targetDir = isVercel ? "/tmp" : path.join(process.cwd(), "data");
+    if (!fs.existsSync(targetDir)) {
+      try {
+        fs.mkdirSync(targetDir, { recursive: true });
+      } catch (e) {}
+    }
+    const targetPath = path.join(targetDir, filename);
+    return new Database(targetPath);
+  } catch (e) {
+    try {
+      return new Database(`/tmp/${filename}`);
+    } catch (e2) {
+      return new Database(":memory:");
+    }
+  }
+};
 
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
-}
-
-const db = new Database(dbPath);
+const db = getSafeDatabase("admin.db");
 
 export interface AdminSession {
   id: string;

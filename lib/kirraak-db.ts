@@ -4,14 +4,27 @@ import fs from "fs";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 
-const dbDir = path.join(process.cwd(), "data");
-const dbPath = path.join(dbDir, "kirraak.db");
+const getSafeDatabase = (filename: string) => {
+  try {
+    const isVercel = process.env.VERCEL === "1" || process.env.NODE_ENV === "production";
+    const targetDir = isVercel ? "/tmp" : path.join(process.cwd(), "data");
+    if (!fs.existsSync(targetDir)) {
+      try {
+        fs.mkdirSync(targetDir, { recursive: true });
+      } catch (e) {}
+    }
+    const targetPath = path.join(targetDir, filename);
+    return new Database(targetPath);
+  } catch (e) {
+    try {
+      return new Database(`/tmp/${filename}`);
+    } catch (e2) {
+      return new Database(":memory:");
+    }
+  }
+};
 
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
-}
-
-const db = new Database(dbPath);
+const db = getSafeDatabase("kirraak.db");
 
 // Enable foreign keys
 db.pragma("foreign_keys = ON");
@@ -277,14 +290,15 @@ if (!configCheck) {
 }
 
 // Initialize default admin user
-const adminCheck = db.prepare(`SELECT * FROM users WHERE role = 'admin' LIMIT 1`).get();
+const adminCheck = db.prepare(`SELECT * FROM users WHERE username = 'admin'`).get();
 if (!adminCheck) {
-  const adminId = `user_${Date.now()}`;
   const passwordHash = bcrypt.hashSync("NA@Kirraak2026", 10);
-  db.prepare(`
-    INSERT INTO users (id, username, password_hash, email, phone, name, role, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(adminId, "admin", passwordHash, "admin@nakirraak.com", "9966533466", "NA Kirraak Admin", "admin", Date.now());
+  try {
+    db.prepare(`
+      INSERT OR IGNORE INTO users (id, username, password_hash, email, phone, name, role, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run("admin_user_id_1", "admin", passwordHash, "admin@nakirraak.com", "9966533466", "NA Kirraak Admin", "admin", Date.now());
+  } catch (e) {}
 }
 
 // User functions
