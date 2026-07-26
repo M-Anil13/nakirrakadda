@@ -1,19 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import jwt from "jsonwebtoken";
-import { getDeliveryConfig, updateDeliveryConfig, getUserById } from "@/lib/kirraak-db";
-
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production";
-
-function verifyToken(authHeader: string | null) {
-  const token = authHeader?.replace("Bearer ", "");
-  if (!token) return null;
-
-  try {
-    return jwt.verify(token, JWT_SECRET) as any;
-  } catch {
-    return null;
-  }
-}
+import { getDeliveryConfig, updateDeliveryConfig } from "@/lib/kirraak-db";
+import { verifyAdminToken } from "@/lib/admin-db";
 
 export async function GET() {
   try {
@@ -40,14 +27,12 @@ export async function GET() {
 
 export async function PUT(request: NextRequest) {
   try {
-    const decoded = verifyToken(request.headers.get("authorization"));
-    if (!decoded) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const authHeader = request.headers.get("authorization");
+    const token = authHeader?.replace("Bearer ", "") || "";
+    const admin = verifyAdminToken(token);
 
-    const user = getUserById(decoded.id);
-    if (!user || user.role !== "admin") {
-      return NextResponse.json({ error: "Access denied - admin only" }, { status: 403 });
+    if (!admin) {
+      return NextResponse.json({ error: "Unauthorized / Access denied - admin only" }, { status: 403 });
     }
 
     const updates = await request.json();

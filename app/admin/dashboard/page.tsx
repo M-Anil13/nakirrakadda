@@ -135,6 +135,59 @@ export default function AdminDashboard() {
     deliveryFees: { "1-1.5": 40, "1.5-2": 50, "2-3": 60 },
   });
   const [deliverySaveMsg, setDeliverySaveMsg] = useState("");
+  const [mapLinkInput, setMapLinkInput] = useState("");
+
+  function parseLocationInput(input: string): { lat: number; lng: number } | null {
+    if (!input || !input.trim()) return null;
+    const str = input.trim();
+
+    // 1. Direct decimal coordinates e.g. "17.3998, 78.5630"
+    const decMatch = str.match(/(-?\d+\.\d+)\s*[\s,]\s*(-?\d+\.\d+)/);
+    if (decMatch) {
+      const lat = parseFloat(decMatch[1]);
+      const lng = parseFloat(decMatch[2]);
+      if (!isNaN(lat) && !isNaN(lng)) return { lat, lng };
+    }
+
+    // 2. Google Maps URL with @lat,lng
+    const urlAtMatch = str.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+    if (urlAtMatch) {
+      const lat = parseFloat(urlAtMatch[1]);
+      const lng = parseFloat(urlAtMatch[2]);
+      if (!isNaN(lat) && !isNaN(lng)) return { lat, lng };
+    }
+
+    // 3. Google Maps q=lat,lng or ll=lat,lng
+    const qMatch = str.match(/[?&](?:q|ll)=(-?\d+\.\d+),(-?\d+\.\d+)/);
+    if (qMatch) {
+      const lat = parseFloat(qMatch[1]);
+      const lng = parseFloat(qMatch[2]);
+      if (!isNaN(lat) && !isNaN(lng)) return { lat, lng };
+    }
+
+    // 4. DMS Integer format like 172359.4 and 783346.8
+    const dmsIntMatch = str.match(/^(\d{2})(\d{2})(\d{2}(?:\.\d+)?)\s*[\s,]\s*(\d{2,3})(\d{2})(\d{2}(?:\.\d+)?)$/);
+    if (dmsIntMatch) {
+      const lat = parseInt(dmsIntMatch[1]) + parseInt(dmsIntMatch[2]) / 60 + parseFloat(dmsIntMatch[3]) / 3600;
+      const lng = parseInt(dmsIntMatch[4]) + parseInt(dmsIntMatch[5]) / 60 + parseFloat(dmsIntMatch[6]) / 3600;
+      return { lat: Number(lat.toFixed(6)), lng: Number(lng.toFixed(6)) };
+    }
+
+    return null;
+  }
+
+  function convertDmsToDecimal(val: number): number {
+    if (!val || Math.abs(val) <= 180) return val;
+    const s = Math.abs(val).toString();
+    if (s.length >= 6) {
+      const deg = parseInt(s.slice(0, s.length >= 7 ? 3 : 2));
+      const min = parseInt(s.slice(s.length >= 7 ? 3 : 2, s.length >= 7 ? 5 : 4));
+      const sec = parseFloat(s.slice(s.length >= 7 ? 5 : 4)) || 0;
+      const dec = deg + min / 60 + sec / 3600;
+      return Number((val < 0 ? -dec : dec).toFixed(6));
+    }
+    return val;
+  }
 
   // Form states matching Image 3
   const [formData, setFormData] = useState({
@@ -2471,37 +2524,78 @@ export default function AdminDashboard() {
             <form onSubmit={handleSaveDeliveryConfig} className="space-y-6">
               {/* Center Location */}
               <div className="space-y-4 rounded-2xl border border-white/10 bg-black/40 p-4">
-                <h3 className="font-semibold text-orange-400">Store / Kitchen Center Location</h3>
+                <h3 className="font-semibold text-orange-400 flex items-center justify-between">
+                  <span>📍 Store / Kitchen Center Location</span>
+                  <span className="text-[10px] text-zinc-400 font-normal">Auto-detects Google Maps URLs & Coordinates</span>
+                </h3>
+
+                {/* Google Maps Link / Raw Coordinates Auto-Parser Box */}
+                <div className="p-3.5 rounded-xl border border-orange-500/30 bg-orange-500/10 space-y-1.5">
+                  <label className="block text-xs font-bold text-orange-300">
+                    🔗 Paste Google Maps Location Link or Coordinates
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={mapLinkInput}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setMapLinkInput(val);
+                        const parsed = parseLocationInput(val);
+                        if (parsed) {
+                          setDeliveryConfig((prev) => ({
+                            ...prev,
+                            storeLocation: {
+                              ...prev.storeLocation,
+                              lat: parsed.lat,
+                              lng: parsed.lng,
+                            },
+                          }));
+                        }
+                      }}
+                      placeholder="Paste Google Maps URL (e.g. https://maps.google.com/... or 17.3998, 78.5630 or 172359.4, 783346.8)"
+                      className="w-full rounded-xl border border-white/10 bg-black/80 px-3 py-2 text-xs text-white outline-none focus:border-orange-500 font-mono"
+                    />
+                  </div>
+                  <p className="text-[10px] text-zinc-300 italic">
+                    💡 Tip: You can paste any Google Maps share link, coordinates, or DMS values. Latitude & Longitude will be extracted and converted automatically!
+                  </p>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs text-zinc-400 mb-1">Latitude</label>
+                    <label className="block text-xs text-zinc-400 mb-1">Latitude (Decimal Degrees e.g. 17.3998)</label>
                     <input
                       type="number"
                       step="any"
                       value={deliveryConfig.storeLocation.lat}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const raw = parseFloat(e.target.value) || 0;
+                        const finalLat = convertDmsToDecimal(raw);
                         setDeliveryConfig({
                           ...deliveryConfig,
-                          storeLocation: { ...deliveryConfig.storeLocation, lat: parseFloat(e.target.value) || 0 },
-                        })
-                      }
-                      className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-white text-sm"
+                          storeLocation: { ...deliveryConfig.storeLocation, lat: finalLat },
+                        });
+                      }}
+                      className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-white text-sm font-mono"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-zinc-400 mb-1">Longitude</label>
+                    <label className="block text-xs text-zinc-400 mb-1">Longitude (Decimal Degrees e.g. 78.5630)</label>
                     <input
                       type="number"
                       step="any"
                       value={deliveryConfig.storeLocation.lng}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const raw = parseFloat(e.target.value) || 0;
+                        const finalLng = convertDmsToDecimal(raw);
                         setDeliveryConfig({
                           ...deliveryConfig,
-                          storeLocation: { ...deliveryConfig.storeLocation, lng: parseFloat(e.target.value) || 0 },
-                        })
-                      }
-                      className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-white text-sm"
+                          storeLocation: { ...deliveryConfig.storeLocation, lng: finalLng },
+                        });
+                      }}
+                      className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-white text-sm font-mono"
                       required
                     />
                   </div>
