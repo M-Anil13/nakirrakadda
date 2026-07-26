@@ -2,6 +2,9 @@ import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
 import crypto from "crypto";
+import jwt from "jsonwebtoken";
+
+const JWT_SECRET = process.env.JWT_SECRET || "nakirraak_secret_key_2026";
 
 const getSafeDatabase = (filename: string) => {
   try {
@@ -251,7 +254,7 @@ if (!adminCheck) {
 export function verifyAdminLogin(identifier: string, password: string): { admin: any; token: string } | null {
   const cleanId = identifier.trim().toLowerCase();
 
-  // 1. Check Super Admin by email or username (ignoring employee shadow admins)
+  // 1. Check Super Admin by email or username
   const admin = db.prepare(`
     SELECT * FROM admins 
     WHERE (LOWER(email) = ? OR LOWER(name) = ?) AND email NOT LIKE '%@emp.local'
@@ -260,26 +263,31 @@ export function verifyAdminLogin(identifier: string, password: string): { admin:
   if (admin) {
     const passwordHash = hashPassword(password);
     if (admin.passwordHash === passwordHash || password === 'NA@Kirraak2026') {
-      const sessionId = `sess_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-      const token = crypto.randomBytes(32).toString('hex');
-      const createdAt = Date.now();
-      const expiresAt = createdAt + 7 * 24 * 60 * 60 * 1000;
-
-      db.prepare(`
-        INSERT INTO sessions (id, adminId, token, createdAt, expiresAt)
-        VALUES (?, ?, ?, ?, ?)
-      `).run(sessionId, admin.id, token, createdAt, expiresAt);
-
-      return {
-        admin: {
-          id: admin.id,
-          name: admin.name,
-          email: admin.email,
-          role: "Super Admin",
-          isSuperAdmin: true,
+      const adminObj = {
+        id: admin.id,
+        name: admin.name,
+        email: admin.email,
+        role: "Super Admin",
+        isSuperAdmin: true,
+        permissions: {
+          canEditMenu: true,
+          canManageOrders: true,
+          canManageRoles: true,
+          canViewAnalytics: true,
         },
-        token,
       };
+
+      const token = jwt.sign(adminObj, JWT_SECRET, { expiresIn: "30d" });
+
+      try {
+        const sessionId = `sess_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+        db.prepare(`
+          INSERT INTO sessions (id, adminId, token, createdAt, expiresAt)
+          VALUES (?, ?, ?, ?, ?)
+        `).run(sessionId, admin.id, token, Date.now(), Date.now() + 30 * 24 * 60 * 60 * 1000);
+      } catch (e) {}
+
+      return { admin: adminObj, token };
     }
   }
 
@@ -290,69 +298,14 @@ export function verifyAdminLogin(identifier: string, password: string): { admin:
   `).get(cleanId, cleanId, `%${cleanId}%`, cleanId) as any;
 
   if (emp) {
-    // Validate passcode or PIN
     const passcodeMatch = emp.passcode === password || hashPassword(password) === emp.passcode || password === "1234" || password === "NA@Kirraak2026";
     if (passcodeMatch) {
-      const sessionId = `sess_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-      const token = crypto.randomBytes(32).toString('hex');
-      const createdAt = Date.now();
-      const expiresAt = createdAt + 7 * 24 * 60 * 60 * 1000;
-
-      // Insert shadow admin record if missing to satisfy foreign keys
-      db.prepare(`
-        INSERT OR IGNORE INTO admins (id, email, passwordHash, name, createdAt)
-        VALUES (?, ?, ?, ?, ?)
-      `).run(emp.id, `${emp.id}@emp.local`, 'EMPLOYEE_PASS', emp.name, createdAt);
-
-      db.prepare(`
-        INSERT INTO sessions (id, adminId, token, createdAt, expiresAt)
-        VALUES (?, ?, ?, ?, ?)
-      `).run(sessionId, emp.id, token, createdAt, expiresAt);
-
-      // Fetch role permissions for employee
       const roleRow = db.prepare(`SELECT * FROM roles WHERE LOWER(name) = LOWER(?)`).get(emp.role) as any;
-
-      return {
-        admin: {
-          id: emp.id,
-          name: emp.name,
-          role: emp.role,
-          phone: emp.phone,
-          isEmployee: true,
-          permissions: roleRow ? {
-            canEditMenu: Boolean(roleRow.canEditMenu),
-            canManageOrders: Boolean(roleRow.canManageOrders),
-            canManageRoles: Boolean(roleRow.canManageRoles),
-            canViewAnalytics: Boolean(roleRow.canViewAnalytics),
-          } : { canEditMenu: false, canManageOrders: true, canManageRoles: false, canViewAnalytics: false },
-        },
-        token,
-      };
-    }
-  }
-
-  return null;
-}
-
-export function verifyAdminToken(token: string): any | null {
-  const session = db.prepare(`
-    SELECT s.*, a.name, a.email
-    FROM sessions s
-    LEFT JOIN admins a ON s.adminId = a.id
-    WHERE s.token = ? AND s.expiresAt > ?
-  `).get(token, Date.now()) as any;
-  
-  if (!session) return null;
-
-  // If token belongs to employee
-  if (!session.email || session.email.includes("@emp.local")) {
-    const emp = db.prepare(`SELECT * FROM employees WHERE id = ?`).get(session.adminId) as any;
-    if (emp) {
-      const roleRow = db.prepare(`SELECT * FROM roles WHERE LOWER(name) = LOWER(?)`).get(emp.role) as any;
-      return {
+      const empObj = {
         id: emp.id,
         name: emp.name,
         role: emp.role,
+        phone: emp.phone,
         isEmployee: true,
         permissions: roleRow ? {
           canEditMenu: Boolean(roleRow.canEditMenu),
@@ -361,19 +314,83 @@ export function verifyAdminToken(token: string): any | null {
           canViewAnalytics: Boolean(roleRow.canViewAnalytics),
         } : { canEditMenu: false, canManageOrders: true, canManageRoles: false, canViewAnalytics: false },
       };
+
+      const token = jwt.sign(empObj, JWT_SECRET, { expiresIn: "30d" });
+
+      try {
+        const sessionId = `sess_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+        db.prepare(`
+          INSERT OR IGNORE INTO admins (id, email, passwordHash, name, createdAt)
+          VALUES (?, ?, ?, ?, ?)
+        `).run(emp.id, `${emp.id}@emp.local`, 'EMPLOYEE_PASS', emp.name, Date.now());
+
+        db.prepare(`
+          INSERT INTO sessions (id, adminId, token, createdAt, expiresAt)
+          VALUES (?, ?, ?, ?, ?)
+        `).run(sessionId, emp.id, token, Date.now(), Date.now() + 30 * 24 * 60 * 60 * 1000);
+      } catch (e) {}
+
+      return { admin: empObj, token };
     }
   }
 
-  return {
-    ...session,
-    isSuperAdmin: true,
-    permissions: {
-      canEditMenu: true,
-      canManageOrders: true,
-      canManageRoles: true,
-      canViewAnalytics: true,
-    },
-  };
+  return null;
+}
+
+export function verifyAdminToken(token: string): any | null {
+  if (!token) return null;
+
+  // 1. Stateless JWT Verification (Vercel Serverless Multi-Container Safe)
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    if (decoded && (decoded.id || decoded.email || decoded.isSuperAdmin)) {
+      return decoded;
+    }
+  } catch (e) {}
+
+  // 2. Database Session Fallback
+  try {
+    const session = db.prepare(`
+      SELECT s.*, a.name, a.email
+      FROM sessions s
+      LEFT JOIN admins a ON s.adminId = a.id
+      WHERE s.token = ? AND s.expiresAt > ?
+    `).get(token, Date.now()) as any;
+    
+    if (session) {
+      if (!session.email || session.email.includes("@emp.local")) {
+        const emp = db.prepare(`SELECT * FROM employees WHERE id = ?`).get(session.adminId) as any;
+        if (emp) {
+          const roleRow = db.prepare(`SELECT * FROM roles WHERE LOWER(name) = LOWER(?)`).get(emp.role) as any;
+          return {
+            id: emp.id,
+            name: emp.name,
+            role: emp.role,
+            isEmployee: true,
+            permissions: roleRow ? {
+              canEditMenu: Boolean(roleRow.canEditMenu),
+              canManageOrders: Boolean(roleRow.canManageOrders),
+              canManageRoles: Boolean(roleRow.canManageRoles),
+              canViewAnalytics: Boolean(roleRow.canViewAnalytics),
+            } : { canEditMenu: false, canManageOrders: true, canManageRoles: false, canViewAnalytics: false },
+          };
+        }
+      }
+
+      return {
+        ...session,
+        isSuperAdmin: true,
+        permissions: {
+          canEditMenu: true,
+          canManageOrders: true,
+          canManageRoles: true,
+          canViewAnalytics: true,
+        },
+      };
+    }
+  } catch (e) {}
+
+  return null;
 }
 
 export function getAllOrders() {
