@@ -192,7 +192,7 @@ export default function AdminDashboard() {
       const res = await fetch("/api/categories");
       if (res.ok) {
         const data = await res.json();
-        setCategories(data);
+        if (Array.isArray(data)) setCategories(data);
       }
     } catch (e) {
       console.error("Error loading categories:", e);
@@ -222,7 +222,7 @@ export default function AdminDashboard() {
       });
       if (res.ok) {
         const data = await res.json();
-        setEmployees(data);
+        if (Array.isArray(data)) setEmployees(data);
       }
     } catch (e) {}
   };
@@ -236,7 +236,7 @@ export default function AdminDashboard() {
       });
       if (res.ok) {
         const data = await res.json();
-        setRoles(data);
+        if (Array.isArray(data)) setRoles(data);
       }
     } catch (e) {}
   };
@@ -260,7 +260,7 @@ export default function AdminDashboard() {
       });
       if (res.ok) {
         const config = await res.json();
-        if (config) setEmailForm(config);
+        if (config && !config.error) setEmailForm(config);
       }
     } catch (e) {}
   };
@@ -297,9 +297,14 @@ export default function AdminDashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "getAdminOffers", token: savedToken }),
       });
+      if (res.status === 401) {
+        localStorage.removeItem("adminToken");
+        router.push("/admin/login");
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
-        setOffers(data);
+        if (Array.isArray(data)) setOffers(data);
       }
     } catch (e) {}
   };
@@ -654,7 +659,7 @@ export default function AdminDashboard() {
   };
 
   // Continuously trigger alert sound if any unconfirmed order exists
-  const unconfirmedOrders = orders.filter((o) => o.status.toLowerCase().includes("received"));
+  const unconfirmedOrders = (Array.isArray(orders) ? orders : []).filter((o) => o && o.status && o.status.toLowerCase().includes("received"));
 
   useEffect(() => {
     if (unconfirmedOrders.length > 0) {
@@ -667,7 +672,7 @@ export default function AdminDashboard() {
       const res = await fetch("/api/delivery/config");
       if (res.ok) {
         const data = await res.json();
-        setDeliveryConfig(data);
+        if (data && !data.error) setDeliveryConfig(data);
       }
     } catch (e) {
       console.error("Error loading delivery config:", e);
@@ -703,8 +708,10 @@ export default function AdminDashboard() {
   const loadProducts = async () => {
     try {
       const response = await fetch("/api/products?includeDisabled=true");
-      const data = await response.json();
-      setProducts(data);
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data)) setProducts(data);
+      }
     } catch (error) {
       console.error("Error loading products:", error);
     }
@@ -720,8 +727,15 @@ export default function AdminDashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "getOrders", token: savedToken }),
       });
-      const data = await response.json();
-      setOrders(data);
+      if (response.status === 401) {
+        localStorage.removeItem("adminToken");
+        router.push("/admin/login");
+        return;
+      }
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data)) setOrders(data);
+      }
     } catch (error) {
       console.error("Error loading orders:", error);
     }
