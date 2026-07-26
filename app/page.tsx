@@ -184,11 +184,17 @@ export default function Home() {
 
   const paymentOptions = useMemo(() => {
     const opts: string[] = [];
-    if (gatewaySettings.enableUpi) opts.push("UPI");
-    if (gatewaySettings.enableBank) opts.push("Bank Transfer");
-    if (gatewaySettings.enableCod) opts.push("Cash on Delivery");
-    return opts.length > 0 ? opts : ["Cash on Delivery"];
+    if (gatewaySettings && gatewaySettings.enableUpi === true) opts.push("UPI");
+    if (gatewaySettings && gatewaySettings.enableBank === true) opts.push("Bank Transfer");
+    if (gatewaySettings && gatewaySettings.enableCod !== false) opts.push("Cash on Delivery");
+    return opts;
   }, [gatewaySettings]);
+
+  useEffect(() => {
+    if (paymentOptions.length > 0 && !paymentOptions.includes(paymentMethod)) {
+      setPaymentMethod(paymentOptions[0]);
+    }
+  }, [paymentOptions, paymentMethod]);
 
   const detectGPSLocation = () => {
     if ("geolocation" in navigator) {

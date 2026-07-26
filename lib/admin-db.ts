@@ -440,50 +440,96 @@ export function assignOrderStaff(id: string, staffName: string): boolean {
 }
 
 // Paytm & Payment Gateways Config Helpers
+let memoryPaytmConfig: any = null;
+
 export function getPaytmConfig(): any {
-  const stmt = db.prepare(`SELECT * FROM paytm_config WHERE id = 'main'`);
-  const config = stmt.get() as any;
-  if (!config) {
-    return {
-      merchantId: "",
-      merchantKey: "",
-      website: "DEFAULT",
-      upiId: "9966533466@ybl",
-      isActive: false,
-      enableUpi: true,
-      enableBank: true,
-      enableCod: true,
-      bankDetails: "State Bank of India | A/C: 1234567890 | IFSC: SBIN0001234 | Name: NA KIRRAAK ADDA",
-    };
+  if (memoryPaytmConfig) {
+    return memoryPaytmConfig;
   }
+
+  try {
+    const cacheFile = path.join("/tmp", "paytm_config_cache.json");
+    if (fs.existsSync(cacheFile)) {
+      const cachedData = JSON.parse(fs.readFileSync(cacheFile, "utf-8"));
+      if (cachedData) {
+        memoryPaytmConfig = cachedData;
+        return cachedData;
+      }
+    }
+  } catch (e) {}
+
+  try {
+    const stmt = db.prepare(`SELECT * FROM paytm_config WHERE id = 'main'`);
+    const config = stmt.get() as any;
+    if (config) {
+      const result = {
+        ...config,
+        isActive: Boolean(config.isActive),
+        enableUpi: Boolean(config.enableUpi),
+        enableBank: Boolean(config.enableBank),
+        enableCod: Boolean(config.enableCod),
+        bankDetails: config.bankDetails || "State Bank of India | A/C: 1234567890 | IFSC: SBIN0001234 | Name: NA KIRRAAK ADDA",
+      };
+      memoryPaytmConfig = result;
+      return result;
+    }
+  } catch (e) {}
+
   return {
-    ...config,
-    isActive: Boolean(config.isActive),
-    enableUpi: config.enableUpi === undefined ? true : Boolean(config.enableUpi),
-    enableBank: config.enableBank === undefined ? true : Boolean(config.enableBank),
-    enableCod: config.enableCod === undefined ? true : Boolean(config.enableCod),
-    bankDetails: config.bankDetails || "State Bank of India | A/C: 1234567890 | IFSC: SBIN0001234 | Name: NA KIRRAAK ADDA",
+    merchantId: "",
+    merchantKey: "",
+    website: "DEFAULT",
+    upiId: "9966533466@ybl",
+    isActive: false,
+    enableUpi: true,
+    enableBank: false,
+    enableCod: true,
+    bankDetails: "State Bank of India | A/C: 1234567890 | IFSC: SBIN0001234 | Name: NA KIRRAAK ADDA",
   };
 }
 
 export function updatePaytmConfig(data: any): any {
-  const stmt = db.prepare(`
-    INSERT OR REPLACE INTO paytm_config (id, merchantId, merchantKey, website, upiId, isActive, enableUpi, enableBank, enableCod, bankDetails, updatedAt)
-    VALUES ('main', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-  stmt.run(
-    data.merchantId || "",
-    data.merchantKey || "",
-    data.website || "DEFAULT",
-    data.upiId || "9966533466@ybl",
-    data.isActive ? 1 : 0,
-    data.enableUpi !== false ? 1 : 0,
-    data.enableBank !== false ? 1 : 0,
-    data.enableCod !== false ? 1 : 0,
-    data.bankDetails || "",
-    Date.now()
-  );
-  return getPaytmConfig();
+  const newConfig = {
+    id: "main",
+    merchantId: data.merchantId || "",
+    merchantKey: data.merchantKey || "",
+    website: data.website || "DEFAULT",
+    upiId: data.upiId || "9966533466@ybl",
+    isActive: Boolean(data.isActive),
+    enableUpi: Boolean(data.enableUpi),
+    enableBank: Boolean(data.enableBank),
+    enableCod: Boolean(data.enableCod),
+    bankDetails: data.bankDetails || "",
+    updatedAt: Date.now(),
+  };
+
+  memoryPaytmConfig = newConfig;
+
+  try {
+    const cacheFile = path.join("/tmp", "paytm_config_cache.json");
+    fs.writeFileSync(cacheFile, JSON.stringify(newConfig), "utf-8");
+  } catch (e) {}
+
+  try {
+    const stmt = db.prepare(`
+      INSERT OR REPLACE INTO paytm_config (id, merchantId, merchantKey, website, upiId, isActive, enableUpi, enableBank, enableCod, bankDetails, updatedAt)
+      VALUES ('main', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    stmt.run(
+      newConfig.merchantId,
+      newConfig.merchantKey,
+      newConfig.website,
+      newConfig.upiId,
+      newConfig.isActive ? 1 : 0,
+      newConfig.enableUpi ? 1 : 0,
+      newConfig.enableBank ? 1 : 0,
+      newConfig.enableCod ? 1 : 0,
+      newConfig.bankDetails,
+      newConfig.updatedAt
+    );
+  } catch (e) {}
+
+  return newConfig;
 }
 
 // Employee Helpers
