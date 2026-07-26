@@ -170,9 +170,13 @@ export default function Home() {
   const [totalCompletedOrders, setTotalCompletedOrders] = useState(200);
   const [loggedInUser, setLoggedInUser] = useState<any>(null);
 
-  // Online UPI Pre-Payment Modal states
+  // Online UPI & Card Pre-Payment Modal states
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [upiUtrInput, setUpiUtrInput] = useState("");
+  const [cardNumberInput, setCardNumberInput] = useState("");
+  const [cardExpiryInput, setCardExpiryInput] = useState("");
+  const [cardCvvInput, setCardCvvInput] = useState("");
+  const [cardHolderInput, setCardHolderInput] = useState("");
 
   // Dynamic Payment Gateway Toggles state
   const [gatewaySettings, setGatewaySettings] = useState<any>({
@@ -186,6 +190,7 @@ export default function Home() {
     const opts: string[] = [];
     if (gatewaySettings && gatewaySettings.enableUpi === true) opts.push("UPI");
     if (gatewaySettings && gatewaySettings.enableBank === true) opts.push("Bank Transfer");
+    if (gatewaySettings && gatewaySettings.enableCard !== false) opts.push("Card (Credit/Debit)");
     if (gatewaySettings && gatewaySettings.enableCod !== false) opts.push("Cash on Delivery");
     return opts;
   }, [gatewaySettings]);
@@ -198,7 +203,7 @@ export default function Home() {
 
   const detectGPSLocation = () => {
     if ("geolocation" in navigator) {
-      setLocationStatus("Detecting your location via GPS...");
+      setLocationStatus("Detecting your live GPS location...");
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const { latitude, longitude } = position.coords;
@@ -216,7 +221,7 @@ export default function Home() {
               setLocationStatus(`Location verified: ${data.distanceKm.toFixed(1)} km from store ✓`);
               setTimeout(() => setLocationModalOpen(false), 1200);
             } else {
-              setLocationStatus("⚠️ Out of delivery zone (>3km from Uppal store)");
+              setLocationStatus(`⚠️ You are ${data.distanceKm ? data.distanceKm.toFixed(1) : "3+"} km away from Uppal store (Out of Delivery Radius >3 km)`);
             }
           } catch (e) {
             setSelectedLocation(`GPS (Lat: ${latitude.toFixed(2)}, Lng: ${longitude.toFixed(2)})`);
@@ -977,6 +982,8 @@ export default function Home() {
               <p className="text-3xl font-black text-emerald-400 mt-0.5">₹{grandTotal.toFixed(0)}</p>
               {paymentMethod === "Bank Transfer" ? (
                 <p className="text-[11px] text-zinc-300 mt-1">Direct Bank Deposit Details Below</p>
+              ) : paymentMethod === "Card (Credit/Debit)" ? (
+                <p className="text-[11px] text-zinc-300 mt-1">Secure Credit / Debit Card Gateway</p>
               ) : (
                 <p className="text-[11px] text-zinc-400 mt-1">Store UPI: <strong className="text-orange-400 font-bold">{gatewaySettings.upiId || "9966533466@ybl"}</strong> (NA KIRRAAK ADDA)</p>
               )}
@@ -998,6 +1005,57 @@ export default function Home() {
                       <p>• Name: NA KIRRAAK ADDA</p>
                     </>
                   )}
+                </div>
+              </div>
+            ) : paymentMethod === "Card (Credit/Debit)" ? (
+              <div className="rounded-2xl border border-orange-500/40 bg-black/80 p-4 space-y-3 text-left">
+                <p className="text-xs font-bold text-orange-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <span>💳</span> Enter Card Details
+                </p>
+                <div>
+                  <label className="block text-[11px] text-zinc-400 mb-1">Cardholder Name</label>
+                  <input
+                    type="text"
+                    value={cardHolderInput}
+                    onChange={(e) => setCardHolderInput(e.target.value)}
+                    placeholder="Name on Card"
+                    className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-xs text-white outline-none focus:border-orange-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-zinc-400 mb-1">16-Digit Card Number</label>
+                  <input
+                    type="text"
+                    maxLength={19}
+                    value={cardNumberInput}
+                    onChange={(e) => setCardNumberInput(e.target.value)}
+                    placeholder="4532 •••• •••• 8912"
+                    className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-xs text-white outline-none focus:border-orange-500 font-mono tracking-widest"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[11px] text-zinc-400 mb-1">Expiry (MM/YY)</label>
+                    <input
+                      type="text"
+                      maxLength={5}
+                      value={cardExpiryInput}
+                      onChange={(e) => setCardExpiryInput(e.target.value)}
+                      placeholder="08/28"
+                      className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-xs text-white outline-none focus:border-orange-500 font-mono text-center"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-zinc-400 mb-1">CVV / CVC</label>
+                    <input
+                      type="password"
+                      maxLength={4}
+                      value={cardCvvInput}
+                      onChange={(e) => setCardCvvInput(e.target.value)}
+                      placeholder="•••"
+                      className="w-full rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-xs text-white outline-none focus:border-orange-500 font-mono text-center"
+                    />
+                  </div>
                 </div>
               </div>
             ) : (

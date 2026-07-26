@@ -451,6 +451,10 @@ export function assignOrderStaff(id: string, staffName: string): boolean {
   return true;
 }
 
+try {
+  db.exec(`ALTER TABLE paytm_config ADD COLUMN enableCard INTEGER DEFAULT 1`);
+} catch (e) {}
+
 // Paytm & Payment Gateways Config Helpers
 let memoryPaytmConfig: any = null;
 
@@ -479,6 +483,7 @@ export function getPaytmConfig(): any {
         isActive: Boolean(config.isActive),
         enableUpi: Boolean(config.enableUpi),
         enableBank: Boolean(config.enableBank),
+        enableCard: config.enableCard === undefined ? true : Boolean(config.enableCard),
         enableCod: Boolean(config.enableCod),
         bankDetails: config.bankDetails || "State Bank of India | A/C: 1234567890 | IFSC: SBIN0001234 | Name: NA KIRRAAK ADDA",
       };
@@ -495,6 +500,7 @@ export function getPaytmConfig(): any {
     isActive: false,
     enableUpi: true,
     enableBank: false,
+    enableCard: true,
     enableCod: true,
     bankDetails: "State Bank of India | A/C: 1234567890 | IFSC: SBIN0001234 | Name: NA KIRRAAK ADDA",
   };
@@ -510,6 +516,7 @@ export function updatePaytmConfig(data: any): any {
     isActive: Boolean(data.isActive),
     enableUpi: Boolean(data.enableUpi),
     enableBank: Boolean(data.enableBank),
+    enableCard: Boolean(data.enableCard),
     enableCod: Boolean(data.enableCod),
     bankDetails: data.bankDetails || "",
     updatedAt: Date.now(),

@@ -2278,6 +2278,25 @@ export default function AdminDashboard() {
                     )}
                   </div>
 
+                  {/* Enable Credit / Debit Card */}
+                  <div className="flex items-center justify-between p-3.5 rounded-xl border border-white/10 bg-black/40">
+                    <div>
+                      <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                        <span>💳</span> Credit / Debit Card Payments
+                      </h4>
+                      <p className="text-[10px] text-zinc-400 mt-0.5">Visa, Mastercard, RuPay, Maestro Card Online</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPaytmConfig({ ...paytmConfig, enableCard: !paytmConfig.enableCard })}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        paytmConfig.enableCard ? "bg-emerald-500" : "bg-zinc-700"
+                      }`}
+                    >
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${paytmConfig.enableCard ? "translate-x-6" : "translate-x-1"}`} />
+                    </button>
+                  </div>
+
                   {/* Enable Cash on Delivery */}
                   <div className="flex items-center justify-between p-3.5 rounded-xl border border-white/10 bg-black/40">
                     <div>

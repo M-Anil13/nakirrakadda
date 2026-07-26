@@ -55,7 +55,7 @@ export default function Header() {
               setLocationStatus(`Live Location Active: ${data.distanceKm.toFixed(1)} km from Uppal store ✓`);
               setTimeout(() => setLocationModalOpen(false), 1200);
             } else {
-              setLocationStatus("⚠️ Out of delivery zone (>3km from Uppal store)");
+              setLocationStatus(`⚠️ You are ${data.distanceKm ? data.distanceKm.toFixed(1) : "3+"} km away from Uppal store (Out of Delivery Radius >3 km)`);
             }
           } catch (e) {
             setSelectedLocation(`⚡ Live GPS (Lat: ${latitude.toFixed(2)}, Lng: ${longitude.toFixed(2)})`);
@@ -201,7 +201,13 @@ export default function Header() {
             </button>
 
             {locationStatus && (
-              <p className="text-xs text-center font-semibold text-emerald-400 bg-emerald-500/10 p-2.5 rounded-xl border border-emerald-500/20">
+              <p
+                className={`text-xs text-center font-bold p-3 rounded-xl border transition ${
+                  locationStatus.includes("Out of") || locationStatus.includes("away") || locationStatus.includes("denied")
+                    ? "text-red-400 bg-red-500/15 border-red-500/40 shadow-lg shadow-red-500/10"
+                    : "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
+                }`}
+              >
                 {locationStatus}
               </p>
             )}
