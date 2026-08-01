@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { generateQRCodeSVG } from "@/lib/qr-generator";
 
@@ -53,7 +53,8 @@ export default function AdminDashboard() {
   });
   const [tablesStatus, setTablesStatus] = useState<any[]>([]);
   const [dineInSaveMsg, setDineInSaveMsg] = useState("");
-  const [orderFilter, setOrderFilter] = useState<"all" | "dine_in" | "online">("all");
+  const [orderFilter, setOrderFilter] = useState<"all" | "dine_in" | "online" | "unconfirmed">("all");
+  const [selectedOrderModal, setSelectedOrderModal] = useState<any | null>(null);
 
   const loadDineInConfig = async () => {
     try {
@@ -800,6 +801,36 @@ export default function AdminDashboard() {
     }
   };
 
+  const prevOrderIdsRef = useRef<Set<string>>(new Set());
+  const isFirstOrderLoadRef = useRef<boolean>(true);
+  const [kitchenSoundEnabled, setKitchenSoundEnabled] = useState<boolean>(true);
+
+  const playOrderChimeSound = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const now = ctx.currentTime;
+
+      // Two-tone cheerful restaurant kitchen bell chime (E5 -> A5)
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+
+      osc1.type = "sine";
+      osc1.frequency.setValueAtTime(659.25, now);
+      osc1.frequency.setValueAtTime(880, now + 0.15);
+
+      gain1.gain.setValueAtTime(0.4, now);
+      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+
+      osc1.start(now);
+      osc1.stop(now + 0.8);
+    } catch (e) {}
+  };
+
   const loadOrders = async () => {
     const savedToken = localStorage.getItem("adminToken");
     if (!savedToken) return;
@@ -817,7 +848,25 @@ export default function AdminDashboard() {
       }
       if (response.ok) {
         const data = await response.json();
-        if (Array.isArray(data)) setOrders(data);
+        if (Array.isArray(data)) {
+          setOrders(data);
+
+          // Trigger Kitchen Alert Sound when a new order arrives
+          const currentIds = new Set(data.map((o: any) => o.id));
+          if (!isFirstOrderLoadRef.current && kitchenSoundEnabled) {
+            let hasNewOrder = false;
+            currentIds.forEach((id) => {
+              if (!prevOrderIdsRef.current.has(id)) {
+                hasNewOrder = true;
+              }
+            });
+            if (hasNewOrder) {
+              playOrderChimeSound();
+            }
+          }
+          prevOrderIdsRef.current = currentIds;
+          isFirstOrderLoadRef.current = false;
+        }
       }
     } catch (error) {
       console.error("Error loading orders:", error);
@@ -982,8 +1031,14 @@ export default function AdminDashboard() {
             </span>
           </div>
           <button
-            onClick={() => setActiveTab("orders")}
-            className="rounded-full bg-black text-white px-4 py-1 text-xs font-bold hover:bg-zinc-800 transition"
+            onClick={() => {
+              setActiveTab("orders");
+              setOrderFilter("unconfirmed");
+              setTimeout(() => {
+                document.getElementById("orders-queue-container")?.scrollIntoView({ behavior: "smooth" });
+              }, 100);
+            }}
+            className="rounded-full bg-black text-white px-4 py-1 text-xs font-bold hover:bg-zinc-800 transition shadow-lg cursor-pointer"
           >
             View Orders Now →
           </button>
@@ -1531,34 +1586,70 @@ export default function AdminDashboard() {
 
         {/* Orders Tab */}
         {activeTab === "orders" && (isSuperAdmin || permissions.canManageOrders) && (
-          <div className="space-y-4 max-w-4xl mx-auto">
-            {/* Dine-In vs Online Filter Pills */}
-            <div className="flex items-center justify-between bg-zinc-950/90 border border-white/10 rounded-2xl p-3 shadow-lg">
-              <span className="text-xs font-bold text-zinc-300">Filter Orders Queue:</span>
-              <div className="flex gap-2">
+          <div id="orders-queue-container" className="space-y-4 max-w-4xl mx-auto">
+            {/* Dine-In vs Online vs Unconfirmed Filter Pills & Sound Controls */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-zinc-950/90 border border-white/10 rounded-2xl p-3 shadow-lg gap-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-bold text-zinc-300">Filter Queue:</span>
+                <div className="flex gap-1.5 flex-wrap">
+                  <button
+                    onClick={() => setOrderFilter("all")}
+                    className={`px-3 py-1 rounded-xl text-xs font-bold transition ${
+                      orderFilter === "all" ? "bg-orange-500 text-black" : "bg-black/60 text-zinc-400 hover:text-white"
+                    }`}
+                  >
+                    All ({orders.length})
+                  </button>
+                  {unconfirmedOrders.length > 0 && (
+                    <button
+                      onClick={() => setOrderFilter("unconfirmed")}
+                      className={`px-3 py-1 rounded-xl text-xs font-bold transition animate-bounce ${
+                        orderFilter === "unconfirmed" ? "bg-red-500 text-white shadow-lg shadow-red-500/30" : "bg-red-500/20 text-red-300 border border-red-500/40"
+                      }`}
+                    >
+                      🔔 New Unconfirmed ({unconfirmedOrders.length})
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setOrderFilter("dine_in")}
+                    className={`px-3 py-1 rounded-xl text-xs font-bold transition ${
+                      orderFilter === "dine_in" ? "bg-amber-500 text-black" : "bg-black/60 text-zinc-400 hover:text-white"
+                    }`}
+                  >
+                    🍽️ Dine-In ({orders.filter((o) => (o as any).orderType === "dine_in" || o.address.startsWith("Dine-In") || (o as any).tableNumber).length})
+                  </button>
+                  <button
+                    onClick={() => setOrderFilter("online")}
+                    className={`px-3 py-1 rounded-xl text-xs font-bold transition ${
+                      orderFilter === "online" ? "bg-blue-500 text-white" : "bg-black/60 text-zinc-400 hover:text-white"
+                    }`}
+                  >
+                    🛵 Online ({orders.filter((o) => (o as any).orderType !== "dine_in" && !o.address.startsWith("Dine-In") && !(o as any).tableNumber).length})
+                  </button>
+                </div>
+              </div>
+
+              {/* Kitchen Order Alert Chime Sound Buttons */}
+              <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setOrderFilter("all")}
-                  className={`px-3 py-1 rounded-xl text-xs font-bold transition ${
-                    orderFilter === "all" ? "bg-orange-500 text-black" : "bg-black/60 text-zinc-400 hover:text-white"
+                  onClick={() => {
+                    const nextState = !kitchenSoundEnabled;
+                    setKitchenSoundEnabled(nextState);
+                    if (nextState) playOrderChimeSound();
+                  }}
+                  className={`px-3 py-1 rounded-xl text-xs font-bold transition border flex items-center gap-1.5 ${
+                    kitchenSoundEnabled
+                      ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300"
+                      : "bg-black/60 border-white/10 text-zinc-400"
                   }`}
                 >
-                  All ({orders.length})
+                  <span>{kitchenSoundEnabled ? "🔔 Order Sound ON" : "🔕 Sound OFF"}</span>
                 </button>
                 <button
-                  onClick={() => setOrderFilter("dine_in")}
-                  className={`px-3 py-1 rounded-xl text-xs font-bold transition ${
-                    orderFilter === "dine_in" ? "bg-amber-500 text-black" : "bg-black/60 text-zinc-400 hover:text-white"
-                  }`}
+                  onClick={playOrderChimeSound}
+                  className="bg-black/60 hover:bg-black border border-white/10 text-xs font-bold text-amber-300 px-3 py-1 rounded-xl flex items-center gap-1"
                 >
-                  🍽️ Dine-In ({orders.filter((o) => (o as any).orderType === "dine_in" || o.address.startsWith("Dine-In") || (o as any).tableNumber).length})
-                </button>
-                <button
-                  onClick={() => setOrderFilter("online")}
-                  className={`px-3 py-1 rounded-xl text-xs font-bold transition ${
-                    orderFilter === "online" ? "bg-blue-500 text-white" : "bg-black/60 text-zinc-400 hover:text-white"
-                  }`}
-                >
-                  🛵 Online ({orders.filter((o) => (o as any).orderType !== "dine_in" && !o.address.startsWith("Dine-In") && !(o as any).tableNumber).length})
+                  🔊 Test Sound
                 </button>
               </div>
             </div>
@@ -1571,22 +1662,39 @@ export default function AdminDashboard() {
               orders
                 .filter((order) => {
                   const isDineIn = (order as any).orderType === "dine_in" || order.address.startsWith("Dine-In") || (order as any).tableNumber;
+                  const isUnconfirmed = order.status === "Received" || order.status === "Pending";
+                  if (orderFilter === "unconfirmed" && !isUnconfirmed) return false;
                   if (orderFilter === "dine_in" && !isDineIn) return false;
                   if (orderFilter === "online" && isDineIn) return false;
                   return true;
                 })
                 .map((order) => {
                   const isDineIn = (order as any).orderType === "dine_in" || order.address.startsWith("Dine-In") || (order as any).tableNumber;
+                  const isUnconfirmed = order.status === "Received" || order.status === "Pending";
                   let parsedItems: any[] = [];
                   try {
                     parsedItems = typeof (order as any).items === "string" ? JSON.parse((order as any).items) : (order as any).items || [];
                   } catch (e) {}
 
                   return (
-                    <div key={order.id} className={`rounded-2xl border p-6 transition ${isDineIn ? "border-amber-500/40 bg-zinc-950/90" : "border-white/10 bg-zinc-950/90"}`}>
+                    <div
+                      key={order.id}
+                      className={`rounded-2xl border p-6 transition ${
+                        isUnconfirmed
+                          ? "border-2 border-amber-400 shadow-xl shadow-amber-500/20 bg-amber-950/20 animate-pulse"
+                          : isDineIn
+                          ? "border-amber-500/40 bg-zinc-950/90"
+                          : "border-white/10 bg-zinc-950/90"
+                      }`}
+                    >
                       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                         <div className="space-y-1.5 flex-1">
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            {isUnconfirmed && (
+                              <span className="bg-red-500 text-white text-[10px] font-black uppercase px-2 py-0.5 rounded-full animate-bounce">
+                                🔥 NEW UNCONFIRMED
+                              </span>
+                            )}
                             {isDineIn ? (
                               <span className="bg-amber-500/20 text-amber-300 border border-amber-500/50 text-xs font-black uppercase px-2.5 py-0.5 rounded-full">
                                 🍽️ DINE-IN ({(order as any).tableNumber || order.address})
@@ -1618,9 +1726,17 @@ export default function AdminDashboard() {
                             </div>
                           )}
 
-                          <p className="mt-2 font-extrabold text-orange-400 text-sm">
-                            Total Paid: ₹{order.total} <span className="text-xs text-zinc-400 font-normal">({(order as any).paymentMethod || 'Paid'})</span>
-                          </p>
+                          <div className="mt-2 flex items-center justify-between">
+                            <p className="font-extrabold text-orange-400 text-sm">
+                              Total Paid: ₹{order.total} <span className="text-xs text-zinc-400 font-normal">({(order as any).paymentMethod || 'Paid'})</span>
+                            </p>
+                            <button
+                              onClick={() => setSelectedOrderModal(order)}
+                              className="bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border border-orange-500/40 text-xs font-extrabold px-3 py-1 rounded-xl transition"
+                            >
+                              🔍 View Full Details
+                            </button>
+                          </div>
                         </div>
 
                         <div className="flex flex-col items-start gap-2 sm:items-end">
@@ -3050,6 +3166,92 @@ export default function AdminDashboard() {
             </div>
           </div>
         )}
+      {/* Order Details Popup Modal */}
+      {selectedOrderModal && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#16120E] border border-amber-500/40 rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 space-y-4 shadow-2xl text-white">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div>
+                <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full">
+                  {(selectedOrderModal.orderType === "dine_in" || selectedOrderModal.address?.startsWith("Dine-In") || selectedOrderModal.tableNumber) ? `🍽️ ${selectedOrderModal.tableNumber || selectedOrderModal.address}` : "🛵 Online Delivery"}
+                </span>
+                <h3 className="font-extrabold text-lg text-white mt-1">Order #{selectedOrderModal.id.slice(-6).toUpperCase()}</h3>
+              </div>
+              <button
+                onClick={() => setSelectedOrderModal(null)}
+                className="text-zinc-400 hover:text-white font-bold text-xl px-2 py-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-2 bg-black/60 p-4 rounded-xl border border-white/10 text-xs">
+              <div className="flex justify-between">
+                <span className="text-zinc-400">Customer Name:</span>
+                <span className="font-bold text-white text-sm">{selectedOrderModal.customerName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-zinc-400">Phone Number:</span>
+                <span className="font-semibold text-amber-400">📞 {selectedOrderModal.phone}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-zinc-400">Address / Table:</span>
+                <span className="font-semibold text-white">📍 {selectedOrderModal.address}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-zinc-400">Payment Method:</span>
+                <span className="font-semibold text-emerald-400">💳 {selectedOrderModal.paymentMethod || "UPI"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-zinc-400">Order Placed At:</span>
+                <span className="font-medium text-zinc-300">
+                  {selectedOrderModal.createdAt ? new Date(selectedOrderModal.createdAt).toLocaleString("en-IN") : "Just Now"}
+                </span>
+              </div>
+            </div>
+
+            {/* Itemized Receipt */}
+            <div className="space-y-2 bg-black/60 p-4 rounded-xl border border-white/10 text-xs">
+              <p className="font-extrabold text-amber-400 uppercase tracking-wider mb-2">Ordered Dishes Receipt:</p>
+              {(typeof selectedOrderModal.items === "string" ? JSON.parse(selectedOrderModal.items) : selectedOrderModal.items || []).map((it: any, idx: number) => (
+                <div key={idx} className="flex justify-between items-center border-b border-white/5 pb-1.5 text-sm">
+                  <span className="text-white font-semibold">
+                    <strong className="text-amber-400 font-black mr-1">{it.quantity}x</strong> {it.name}
+                  </span>
+                  <span className="font-bold text-amber-300">₹{(it.price || 0) * (it.quantity || 1)}</span>
+                </div>
+              ))}
+              <div className="flex justify-between font-black text-base text-white pt-2 border-t border-white/10">
+                <span>Grand Total</span>
+                <span className="text-amber-400">₹{selectedOrderModal.total}</span>
+              </div>
+            </div>
+
+            {/* Quick Status Update inside Modal */}
+            <div className="space-y-2 pt-2 border-t border-white/10">
+              <label className="block text-xs font-semibold text-zinc-400">Update Order Status:</label>
+              <div className="grid grid-cols-3 gap-2">
+                {["Received", "Preparing", "Ready", "Completed", "Cancelled"].map((st) => (
+                  <button
+                    key={st}
+                    onClick={() => {
+                      handleUpdateOrderStatus(selectedOrderModal.id, st);
+                      setSelectedOrderModal({ ...selectedOrderModal, status: st });
+                    }}
+                    className={`py-2 rounded-xl text-xs font-bold transition border ${
+                      selectedOrderModal.status === st
+                        ? "bg-amber-500 text-black border-amber-500"
+                        : "bg-black/60 text-zinc-300 border-white/10 hover:bg-white/10"
+                    }`}
+                  >
+                    {st}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     </div>
   );
