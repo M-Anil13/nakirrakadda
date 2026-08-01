@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { generateQRCodeSVG } from "@/lib/qr-generator";
 
 interface Product {
   id: string;
@@ -39,8 +40,50 @@ export default function AdminDashboard() {
     canViewAnalytics: true,
   });
 
-  const [activeTab, setActiveTab] = useState<"products" | "orders" | "settings">("products");
+  const [activeTab, setActiveTab] = useState<"products" | "orders" | "dinein" | "settings">("products");
   const [settingsSubTab, setSettingsSubTab] = useState<"categories" | "sound" | "paytm" | "employees" | "delivery" | "offers" | "email">("categories");
+
+  // Dine-In & Table State
+  const [dineInConfig, setDineInConfig] = useState({
+    tableCount: 20,
+    dineInGstRate: 0,
+    dineInServiceCharge: 0,
+    enableDineInCod: false,
+    dineInUpiId: "",
+  });
+  const [tablesStatus, setTablesStatus] = useState<any[]>([]);
+  const [dineInSaveMsg, setDineInSaveMsg] = useState("");
+  const [orderFilter, setOrderFilter] = useState<"all" | "dine_in" | "online">("all");
+
+  const loadDineInConfig = async () => {
+    try {
+      const res = await fetch("/api/dine-in/tables");
+      const data = await res.json();
+      if (data.success) {
+        setDineInConfig(data.config || {});
+        setTablesStatus(data.tables || []);
+      }
+    } catch (e) {}
+  };
+
+  const handleSaveDineInConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setDineInSaveMsg("");
+    try {
+      const res = await fetch("/api/dine-in/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(dineInConfig),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setDineInSaveMsg("Dine-In settings updated successfully! 🎉");
+        loadDineInConfig();
+      }
+    } catch (e) {
+      setDineInSaveMsg("Failed to save Dine-In settings.");
+    }
+  };
 
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -1107,6 +1150,20 @@ export default function AdminDashboard() {
               <span>⚙️</span> Settings & Administration
             </button>
           )}
+
+          <button
+            onClick={() => {
+              setActiveTab("dinein");
+              loadDineInConfig();
+            }}
+            className={`px-6 py-3 text-sm font-extrabold border-b-2 transition flex items-center gap-2 ${
+              activeTab === "dinein"
+                ? "border-amber-500 text-amber-400"
+                : "border-transparent text-zinc-400 hover:text-white"
+            }`}
+          >
+            <span>🍽️</span> Dine-In & Tables
+          </button>
         </div>
 
         {/* Products Tab */}
@@ -1475,55 +1532,134 @@ export default function AdminDashboard() {
         {/* Orders Tab */}
         {activeTab === "orders" && (isSuperAdmin || permissions.canManageOrders) && (
           <div className="space-y-4 max-w-4xl mx-auto">
+            {/* Dine-In vs Online Filter Pills */}
+            <div className="flex items-center justify-between bg-zinc-950/90 border border-white/10 rounded-2xl p-3 shadow-lg">
+              <span className="text-xs font-bold text-zinc-300">Filter Orders Queue:</span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setOrderFilter("all")}
+                  className={`px-3 py-1 rounded-xl text-xs font-bold transition ${
+                    orderFilter === "all" ? "bg-orange-500 text-black" : "bg-black/60 text-zinc-400 hover:text-white"
+                  }`}
+                >
+                  All ({orders.length})
+                </button>
+                <button
+                  onClick={() => setOrderFilter("dine_in")}
+                  className={`px-3 py-1 rounded-xl text-xs font-bold transition ${
+                    orderFilter === "dine_in" ? "bg-amber-500 text-black" : "bg-black/60 text-zinc-400 hover:text-white"
+                  }`}
+                >
+                  🍽️ Dine-In ({orders.filter((o) => (o as any).orderType === "dine_in" || o.address.startsWith("Dine-In") || (o as any).tableNumber).length})
+                </button>
+                <button
+                  onClick={() => setOrderFilter("online")}
+                  className={`px-3 py-1 rounded-xl text-xs font-bold transition ${
+                    orderFilter === "online" ? "bg-blue-500 text-white" : "bg-black/60 text-zinc-400 hover:text-white"
+                  }`}
+                >
+                  🛵 Online ({orders.filter((o) => (o as any).orderType !== "dine_in" && !o.address.startsWith("Dine-In") && !(o as any).tableNumber).length})
+                </button>
+              </div>
+            </div>
+
             {orders.length === 0 ? (
               <div className="rounded-2xl border border-white/10 bg-zinc-950/90 p-8 text-center text-zinc-400">
                 No orders yet.
               </div>
             ) : (
-              orders.map((order) => (
-                <div key={order.id} className="rounded-2xl border border-white/10 bg-zinc-950/90 p-6">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <h3 className="font-semibold text-white">{order.customerName}</h3>
-                      <p className="text-sm text-zinc-400">{order.phone}</p>
-                      <p className="text-sm text-zinc-400">{order.address}</p>
-                      <p className="mt-2 font-semibold text-orange-400">₹{order.total}</p>
-                    </div>
-                    <div className="flex flex-col items-start gap-2 sm:items-end">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-zinc-400">Status:</span>
-                        <select
-                          value={order.status}
-                          onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value)}
-                          className="rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm text-white outline-none focus:border-orange-500 font-bold"
-                        >
-                          <option value="Received">Received 🟡</option>
-                          <option value="Preparing">Preparing 👨‍🍳</option>
-                          <option value="Out for Delivery">Out for Delivery 🛵</option>
-                          <option value="Completed">Completed ✅</option>
-                          <option value="Cancelled">Cancelled ❌</option>
-                        </select>
-                      </div>
+              orders
+                .filter((order) => {
+                  const isDineIn = (order as any).orderType === "dine_in" || order.address.startsWith("Dine-In") || (order as any).tableNumber;
+                  if (orderFilter === "dine_in" && !isDineIn) return false;
+                  if (orderFilter === "online" && isDineIn) return false;
+                  return true;
+                })
+                .map((order) => {
+                  const isDineIn = (order as any).orderType === "dine_in" || order.address.startsWith("Dine-In") || (order as any).tableNumber;
+                  let parsedItems: any[] = [];
+                  try {
+                    parsedItems = typeof (order as any).items === "string" ? JSON.parse((order as any).items) : (order as any).items || [];
+                  } catch (e) {}
 
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs text-zinc-400">Assign Staff:</span>
-                        <select
-                          value={(order as any).assignedStaff || ""}
-                          onChange={(e) => handleAssignStaff(order.id, e.target.value)}
-                          className="rounded-xl border border-white/10 bg-black/60 px-3 py-1.5 text-xs text-orange-300 outline-none"
-                        >
-                          <option value="">-- Unassigned --</option>
-                          {employees.map((emp) => (
-                            <option key={emp.id} value={`${emp.name} (${emp.role})`}>
-                              {emp.name} ({emp.role})
-                            </option>
-                          ))}
-                        </select>
+                  return (
+                    <div key={order.id} className={`rounded-2xl border p-6 transition ${isDineIn ? "border-amber-500/40 bg-zinc-950/90" : "border-white/10 bg-zinc-950/90"}`}>
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="space-y-1.5 flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            {isDineIn ? (
+                              <span className="bg-amber-500/20 text-amber-300 border border-amber-500/50 text-xs font-black uppercase px-2.5 py-0.5 rounded-full">
+                                🍽️ DINE-IN ({(order as any).tableNumber || order.address})
+                              </span>
+                            ) : (
+                              <span className="bg-blue-500/20 text-blue-300 border border-blue-500/40 text-xs font-black uppercase px-2 py-0.5 rounded-full">
+                                🛵 ONLINE DELIVERY
+                              </span>
+                            )}
+                            <span className="text-xs text-zinc-500 font-mono">#{order.id.slice(-6).toUpperCase()}</span>
+                          </div>
+
+                          <h3 className="font-bold text-white text-base">{order.customerName}</h3>
+                          <p className="text-xs text-zinc-400">📞 {order.phone}</p>
+                          <p className="text-xs text-zinc-400">📍 {order.address}</p>
+
+                          {/* Itemized Dishes List */}
+                          {parsedItems.length > 0 && (
+                            <div className="mt-3 bg-black/60 p-3 rounded-xl border border-white/10 text-xs space-y-1">
+                              <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-1">Dishes to Prepare:</p>
+                              {parsedItems.map((it: any, idx: number) => (
+                                <div key={idx} className="flex justify-between text-zinc-200 font-semibold border-b border-white/5 pb-0.5">
+                                  <span>
+                                    <strong className="text-amber-400 text-sm font-black mr-1">{it.quantity}x</strong> {it.name}
+                                  </span>
+                                  <span className="text-zinc-400">₹{(it.price || 0) * (it.quantity || 1)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          <p className="mt-2 font-extrabold text-orange-400 text-sm">
+                            Total Paid: ₹{order.total} <span className="text-xs text-zinc-400 font-normal">({(order as any).paymentMethod || 'Paid'})</span>
+                          </p>
+                        </div>
+
+                        <div className="flex flex-col items-start gap-2 sm:items-end">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-zinc-400">Status:</span>
+                            <select
+                              value={order.status}
+                              onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value)}
+                              className="rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm text-white outline-none focus:border-orange-500 font-bold"
+                            >
+                              <option value="Received">Received 🟡</option>
+                              <option value="Preparing">Preparing 👨‍🍳</option>
+                              <option value="Ready">Ready / Served 🍲</option>
+                              <option value="Out for Delivery">Out for Delivery 🛵</option>
+                              <option value="Completed">Completed ✅</option>
+                              <option value="Cancelled">Cancelled ❌</option>
+                            </select>
+                          </div>
+
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-xs text-zinc-400">Assign Staff:</span>
+                            <select
+                              value={(order as any).assignedStaff || ""}
+                              onChange={(e) => handleAssignStaff(order.id, e.target.value)}
+                              className="rounded-xl border border-white/10 bg-black/60 px-3 py-1.5 text-xs text-orange-300 outline-none"
+                            >
+                              <option value="">-- Unassigned --</option>
+                              {employees.map((emp) => (
+                                <option key={emp.id} value={`${emp.name} (${emp.role})`}>
+                                  {emp.name} ({emp.role})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </div>
-              ))
+                  );
+                })
             )}
           </div>
         )}
@@ -2724,6 +2860,194 @@ export default function AdminDashboard() {
             </form>
           </div>
         )}
+          </div>
+        )}
+
+        {/* Dine-In & Tables Tab View */}
+        {activeTab === "dinein" && (
+          <div className="space-y-8 max-w-5xl mx-auto">
+            {/* Action Banner */}
+            <div className="rounded-[1.75rem] border border-amber-500/30 bg-[#16120E] p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
+              <div>
+                <span className="bg-amber-500/20 text-amber-300 text-xs font-bold px-2.5 py-1 rounded-full border border-amber-500/30">
+                  🍽️ Dine-In Feature A
+                </span>
+                <h2 className="text-xl font-bold text-white mt-2">Dine-In & Table Manager</h2>
+                <p className="text-xs text-zinc-400">Print QR codes for tables, monitor active tables live, and configure Dine-In payment settings.</p>
+              </div>
+
+              <div className="flex gap-2">
+                <a
+                  href="/admin/kot"
+                  target="_blank"
+                  className="bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs px-4 py-2.5 rounded-xl transition flex items-center gap-1.5 shadow"
+                >
+                  <span>🍳</span> Open KOT Kitchen Screen ↗
+                </a>
+              </div>
+            </div>
+
+            {/* Live Table Grid */}
+            <div className="rounded-[1.75rem] border border-white/10 bg-[#16120E] p-6 space-y-6 shadow-2xl">
+              <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                <div>
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <span>🪑</span> Live Table Status ({tablesStatus.length} Tables)
+                  </h3>
+                  <p className="text-xs text-zinc-400">Monitors live orders per table. Scanned QR codes auto-link to table numbers.</p>
+                </div>
+                <button
+                  onClick={loadDineInConfig}
+                  className="bg-black/60 hover:bg-black border border-white/10 text-xs font-semibold text-zinc-300 px-3 py-1.5 rounded-lg"
+                >
+                  🔄 Refresh Tables
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                {tablesStatus.map((tbl: any) => {
+                  const isOccupied = tbl.status === "occupied" || tbl.status === "preparing";
+                  const isReady = tbl.status === "ready";
+
+                  return (
+                    <div
+                      key={tbl.tableNumber}
+                      className={`rounded-2xl p-4 border text-center flex flex-col justify-between space-y-2 transition ${
+                        isReady
+                          ? "bg-emerald-500/10 border-emerald-500/50 text-emerald-300"
+                          : isOccupied
+                          ? "bg-amber-500/10 border-amber-500/50 text-amber-300"
+                          : "bg-black/40 border-white/10 text-zinc-400"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between text-xs font-bold">
+                        <span>{tbl.tableName}</span>
+                        <span className={`w-2 h-2 rounded-full ${isReady ? "bg-emerald-400" : isOccupied ? "bg-amber-400" : "bg-zinc-600"}`}></span>
+                      </div>
+
+                      <div className="py-2">
+                        <p className="text-xs font-black uppercase tracking-wider">
+                          {isReady ? "🍲 Ready to Serve" : isOccupied ? "👨‍🍳 Cooking" : "⚪ Free"}
+                        </p>
+                        {tbl.currentTotal > 0 && <p className="text-sm font-extrabold text-white mt-1">₹{tbl.currentTotal}</p>}
+                      </div>
+
+                      {/* Table QR Button */}
+                      <button
+                        onClick={() => {
+                          const url = `${window.location.origin}/dine-in?table=${tbl.tableNumber}`;
+                          const w = window.open("", "_blank");
+                          if (w) {
+                            const svg = generateQRCodeSVG(url, 280);
+                            w.document.write(`
+                              <html>
+                                <head><title>Print QR — ${tbl.tableName}</title></head>
+                                <body style="font-family: sans-serif; text-align: center; padding: 40px; background: #fafafa;">
+                                  <div style="border: 2px solid #000; display: inline-block; padding: 30px; border-radius: 20px; background: #fff;">
+                                    <h2 style="margin: 0 0 5px; font-size: 24px;">🍔 NA KIRRAAK ADDA</h2>
+                                    <p style="margin: 0 0 20px; color: #666; font-size: 14px;">Scan & Pay to Order</p>
+                                    ${svg}
+                                    <h1 style="margin: 20px 0 0; font-size: 32px; background: #f59e0b; color: #000; padding: 8px; border-radius: 10px;">${tbl.tableName}</h1>
+                                  </div>
+                                  <script>window.onload = () => window.print();</script>
+                                </body>
+                              </html>
+                            `);
+                          }
+                        }}
+                        className="w-full bg-white/5 hover:bg-white/10 text-white font-semibold text-[11px] py-1.5 rounded-lg border border-white/10"
+                      >
+                        🖨️ Print QR
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Dine-In Payment & Tax Settings */}
+            <div className="rounded-[1.75rem] border border-white/10 bg-[#16120E] p-6 lg:p-8 space-y-6 shadow-2xl">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <span>⚙️</span> Dine-In Payment & Tax Configuration
+              </h3>
+              <p className="text-xs text-zinc-400">Configure Dine-In tax rates (default 0%), service charges, and UPI gateway parameters.</p>
+
+              {dineInSaveMsg && (
+                <div className="bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 px-4 py-2.5 rounded-xl text-xs font-semibold">
+                  {dineInSaveMsg}
+                </div>
+              )}
+
+              <form onSubmit={handleSaveDineInConfig} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-400 mb-1">Total Tables Count</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={dineInConfig.tableCount}
+                      onChange={(e) => setDineInConfig({ ...dineInConfig, tableCount: parseInt(e.target.value) || 20 })}
+                      className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-white text-sm focus:border-amber-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-400 mb-1">Dine-In GST Rate (%) [Default 0%]</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      value={dineInConfig.dineInGstRate}
+                      onChange={(e) => setDineInConfig({ ...dineInConfig, dineInGstRate: parseFloat(e.target.value) || 0 })}
+                      className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-white text-sm focus:border-amber-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-400 mb-1">Dine-In Service Charge (₹) [Default ₹0]</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={dineInConfig.dineInServiceCharge}
+                      onChange={(e) => setDineInConfig({ ...dineInConfig, dineInServiceCharge: parseFloat(e.target.value) || 0 })}
+                      className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-white text-sm focus:border-amber-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-400 mb-1">Dine-In Specific UPI ID</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 9966533466@ybl"
+                      value={dineInConfig.dineInUpiId}
+                      onChange={(e) => setDineInConfig({ ...dineInConfig, dineInUpiId: e.target.value })}
+                      className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-white text-sm focus:border-amber-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 bg-black/40 p-3 rounded-xl border border-white/10">
+                  <input
+                    type="checkbox"
+                    id="enableDineInCod"
+                    checked={dineInConfig.enableDineInCod}
+                    onChange={(e) => setDineInConfig({ ...dineInConfig, enableDineInCod: e.target.checked })}
+                    className="w-4 h-4 text-amber-500 rounded bg-slate-900 border-slate-700 focus:ring-amber-500"
+                  />
+                  <label htmlFor="enableDineInCod" className="text-xs text-zinc-300 font-semibold cursor-pointer">
+                    Allow "Pay Cash at Table" option (By default, Pay-First online is enforced)
+                  </label>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black font-extrabold py-3 rounded-full shadow-lg transition"
+                >
+                  Save Dine-In Configuration
+                </button>
+              </form>
+            </div>
           </div>
         )}
       </div>

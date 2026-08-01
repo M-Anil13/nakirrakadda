@@ -15,7 +15,10 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    if (!body.customerName || !body.phone || !body.address) {
+    const isDineIn = body.orderType === "dine_in" || body.address?.startsWith("Dine-In") || body.tableNumber;
+    const effectiveAddress = body.address || (isDineIn ? `Dine-In (${body.tableNumber || "Table 1"})` : "");
+
+    if (!body.customerName || !body.phone || !effectiveAddress) {
       return NextResponse.json(
         { success: false, error: "Missing required order fields" },
         { status: 400 }
@@ -26,16 +29,20 @@ export async function POST(request: Request) {
     const newOrder = createOrder({
       customerName: body.customerName,
       phone: body.phone,
-      address: body.address,
+      address: effectiveAddress,
       paymentMethod: body.paymentMethod || "UPI",
       items: body.items || body.cartItems || [],
       subtotal: body.subtotal || 0,
       gst: body.gst || 0,
-      deliveryCharge: body.deliveryCharge !== undefined ? body.deliveryCharge : 0,
+      deliveryCharge: body.deliveryCharge !== undefined ? body.deliveryCharge : (isDineIn ? 0 : 0),
       total: body.grandTotal || body.total || 0,
       status: "Received",
       couponCode: body.couponCode || "",
       deviceId: body.deviceId || "",
+      orderType: isDineIn ? "dine_in" : "online",
+      tableNumber: body.tableNumber || "",
+      parentOrderId: body.parentOrderId || "",
+      paymentStatus: body.paymentStatus || "completed",
     });
 
     // Send instant Email alert to Admin

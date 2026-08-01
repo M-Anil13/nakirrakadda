@@ -3,6 +3,7 @@ import path from "path";
 import fs from "fs";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
+import { supabase } from "./supabase";
 
 const JWT_SECRET = process.env.JWT_SECRET || "nakirraak_secret_key_2026";
 
@@ -415,22 +416,52 @@ export function getOrder(id: string) {
 export function updateOrderStatus(id: string, status: string): boolean {
   const stmt = db.prepare(`UPDATE customer_orders SET status = ?, updatedAt = ? WHERE id = ?`);
   stmt.run(status, Date.now(), id);
+  if (supabase) {
+    try {
+      supabase.from("customer_orders").update({ status, updatedAt: Date.now() }).eq("id", id);
+    } catch (e) {}
+  }
   return true;
 }
+
+try {
+  db.exec(`ALTER TABLE customer_orders ADD COLUMN orderType TEXT DEFAULT 'online'`);
+} catch (e) {}
+try {
+  db.exec(`ALTER TABLE customer_orders ADD COLUMN tableNumber TEXT DEFAULT ''`);
+} catch (e) {}
+try {
+  db.exec(`ALTER TABLE customer_orders ADD COLUMN parentOrderId TEXT DEFAULT ''`);
+} catch (e) {}
+try {
+  db.exec(`ALTER TABLE customer_orders ADD COLUMN paymentStatus TEXT DEFAULT 'completed'`);
+} catch (e) {}
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS dine_in_config (
+    id TEXT PRIMARY KEY,
+    tableCount INTEGER DEFAULT 20,
+    dineInGstRate REAL DEFAULT 0,
+    dineInServiceCharge REAL DEFAULT 0,
+    enableDineInCod INTEGER DEFAULT 0,
+    dineInUpiId TEXT DEFAULT '',
+    updatedAt INTEGER NOT NULL
+  )
+`);
 
 export function createOrder(order: any): any {
   const id = `order_${Date.now()}_${Math.random().toString(16).slice(2)}`;
   const now = Date.now();
   const stmt = db.prepare(`
-    INSERT INTO customer_orders (id, customerName, phone, address, items, subtotal, gst, deliveryCharge, total, status, paymentMethod, couponCode, deviceId, createdAt, updatedAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO customer_orders (id, customerName, phone, address, items, subtotal, gst, deliveryCharge, total, status, paymentMethod, couponCode, deviceId, orderType, tableNumber, parentOrderId, paymentStatus, createdAt, updatedAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   stmt.run(
     id,
     order.customerName,
     order.phone,
     order.address,
-    JSON.stringify(order.items),
+    typeof order.items === 'string' ? order.items : JSON.stringify(order.items),
     order.subtotal || 0,
     order.gst || 0,
     order.deliveryCharge !== undefined ? order.deliveryCharge : 0,
@@ -439,9 +470,40 @@ export function createOrder(order: any): any {
     order.paymentMethod,
     order.couponCode ? order.couponCode.trim().toUpperCase() : null,
     order.deviceId ? order.deviceId.trim() : null,
+    order.orderType || 'online',
+    order.tableNumber || '',
+    order.parentOrderId || '',
+    order.paymentStatus || 'completed',
     now,
     now
   );
+
+  if (supabase) {
+    try {
+      supabase.from("customer_orders").insert([{
+        id,
+        customerName: order.customerName,
+        phone: order.phone,
+        address: order.address,
+        items: typeof order.items === 'string' ? order.items : JSON.stringify(order.items),
+        subtotal: order.subtotal || 0,
+        gst: order.gst || 0,
+        deliveryCharge: order.deliveryCharge || 0,
+        total: order.total,
+        status: order.status || 'Received',
+        paymentMethod: order.paymentMethod,
+        couponCode: order.couponCode ? order.couponCode.trim().toUpperCase() : null,
+        deviceId: order.deviceId ? order.deviceId.trim() : null,
+        orderType: order.orderType || 'online',
+        tableNumber: order.tableNumber || '',
+        parentOrderId: order.parentOrderId || '',
+        paymentStatus: order.paymentStatus || 'completed',
+        createdAt: now,
+        updatedAt: now
+      }]);
+    } catch (e) {}
+  }
+
   return { id, ...order, createdAt: now, updatedAt: now };
 }
 
@@ -810,3 +872,121 @@ export function saveEmailConfig(data: any): any {
   }
   return getEmailConfig();
 }
+
+// Dine-In Configuration & Table Helpers
+let memoryDineInConfig: any = null;
+
+export function getDineInConfig(): any {
+  if (memoryDineInConfig) {
+    return memoryDineInConfig;
+  }
+  try {
+    const stmt = db.prepare(`SELECT * FROM dine_in_config WHERE id = 'main'`);
+    const cfg = stmt.get() as any;
+    if (cfg) {
+      const res = {
+        ...cfg,
+        tableCount: cfg.tableCount || 20,
+        dineInGstRate: cfg.dineInGstRate !== undefined ? cfg.dineInGstRate : 0,
+        dineInServiceCharge: cfg.dineInServiceCharge || 0,
+        enableDineInCod: Boolean(cfg.enableDineInCod),
+        dineInUpiId: cfg.dineInUpiId || "",
+      };
+      memoryDineInConfig = res;
+      return res;
+    }
+  } catch (e) {}
+
+  return {
+    tableCount: 20,
+    dineInGstRate: 0,
+    dineInServiceCharge: 0,
+    enableDineInCod: false,
+    dineInUpiId: "",
+  };
+}
+
+export function saveDineInConfig(data: any): any {
+  const newConfig = {
+    id: "main",
+    tableCount: Math.max(1, Number(data.tableCount) || 20),
+    dineInGstRate: Math.max(0, Number(data.dineInGstRate) || 0),
+    dineInServiceCharge: Math.max(0, Number(data.dineInServiceCharge) || 0),
+    enableDineInCod: Boolean(data.enableDineInCod),
+    dineInUpiId: data.dineInUpiId ? data.dineInUpiId.trim() : "",
+    updatedAt: Date.now(),
+  };
+
+  memoryDineInConfig = newConfig;
+
+  try {
+    const stmt = db.prepare(`
+      INSERT OR REPLACE INTO dine_in_config (id, tableCount, dineInGstRate, dineInServiceCharge, enableDineInCod, dineInUpiId, updatedAt)
+      VALUES ('main', ?, ?, ?, ?, ?, ?)
+    `);
+    stmt.run(
+      newConfig.tableCount,
+      newConfig.dineInGstRate,
+      newConfig.dineInServiceCharge,
+      newConfig.enableDineInCod ? 1 : 0,
+      newConfig.dineInUpiId,
+      newConfig.updatedAt
+    );
+  } catch (e) {
+    console.error("Error saving dine-in config:", e);
+  }
+  return newConfig;
+}
+
+export function getDineInTablesStatus() {
+  const cfg = getDineInConfig();
+  const tableCount = cfg.tableCount || 20;
+
+  const activeOrdersStmt = db.prepare(`
+    SELECT * FROM customer_orders
+    WHERE (orderType = 'dine_in' OR address LIKE 'Dine-In%' OR address LIKE 'Table%')
+    AND status IN ('Received', 'Preparing', 'Ready')
+    ORDER BY createdAt DESC
+  `);
+  const activeOrders = activeOrdersStmt.all() as any[];
+
+  const tablesMap: Record<number, any> = {};
+  for (let i = 1; i <= tableCount; i++) {
+    tablesMap[i] = {
+      tableNumber: i,
+      tableName: `Table ${i}`,
+      status: 'free',
+      activeOrders: [],
+      currentTotal: 0,
+    };
+  }
+
+  activeOrders.forEach((ord) => {
+    let tNum = 0;
+    if (ord.tableNumber) {
+      const match = String(ord.tableNumber).match(/\d+/);
+      if (match) tNum = parseInt(match[0]);
+    } else if (ord.address) {
+      const match = String(ord.address).match(/Table\s*#?(\d+)/i);
+      if (match) tNum = parseInt(match[1]);
+    }
+
+    if (tNum > 0 && tablesMap[tNum]) {
+      tablesMap[tNum].activeOrders.push(ord);
+      tablesMap[tNum].currentTotal += (ord.total || 0);
+      if (ord.status === 'Preparing' || ord.status === 'Received') {
+        tablesMap[tNum].status = 'preparing';
+      } else if (ord.status === 'Ready') {
+        tablesMap[tNum].status = 'ready';
+      } else if (tablesMap[tNum].status === 'free') {
+        tablesMap[tNum].status = 'occupied';
+      }
+    }
+  });
+
+  return {
+    config: cfg,
+    tables: Object.values(tablesMap),
+  };
+}
+
